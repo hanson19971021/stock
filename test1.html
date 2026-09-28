@@ -3,277 +3,277 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>股票自動偵測與 Yahoo K 線即時分析系統</title>
+    <title>台股 / Yahoo 技術 K 線自動偵測系統</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .badge {
-            @apply px-2.5 py-1 rounded-full text-xs font-semibold inline-block;
-        }
-    </style>
+    <!-- Lightweight Charts (用於繪製真正可程式化讀取的 K 線圖) -->
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
 
     <div class="max-w-7xl mx-auto space-y-6">
         
-        <!-- 頁首 Header -->
+        <!-- Header -->
         <header class="flex flex-col md:flex-row justify-between items-start md:items-center pb-6 border-b border-slate-700 gap-4">
             <div>
-                <h1 class="text-2xl md:text-3xl font-bold text-white tracking-wide">Yahoo 股市 K 線即時偵測與對策系統</h1>
-                <p class="text-slate-400 text-sm mt-1">即時同步走勢圖、多時間層級掃描、關鍵 K 棒捕捉與 ABC 對策</p>
+                <h1 class="text-2xl md:text-3xl font-bold text-white tracking-wide">台股 / Yahoo 技術 K 線自動偵測系統</h1>
+                <p class="text-slate-400 text-sm mt-1">實時抓取 API 數據：動態計算 MA 均線、爆量 K 棒、長下影線與 ABC 對策</p>
             </div>
             
-            <!-- 股票代號選擇器與偵測按鈕 -->
             <div class="flex flex-wrap items-center gap-3">
                 <div class="flex items-center bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5">
-                    <span class="text-xs text-slate-400 mr-2">標的：</span>
-                    <input type="text" id="symbolInput" value="2330.TW" class="bg-transparent text-sm font-bold text-cyan-400 focus:outline-none w-24" placeholder="例如: 2330.TW">
+                    <span class="text-xs text-slate-400 mr-2">股票代號：</span>
+                    <input type="text" id="symbolInput" value="2330" class="bg-transparent text-sm font-bold text-cyan-400 focus:outline-none w-20" placeholder="如 2330">
                 </div>
-                <button onclick="changeSymbol()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-lg shadow-indigo-600/30">
-                    🔍 載入走勢圖並執行偵測
+                <button onclick="fetchAndScanData()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-lg shadow-indigo-600/30">
+                    🚀 載入實時數據並偵測
                 </button>
             </div>
         </header>
 
-        <!-- 第一區塊：Yahoo 股市即時 K 線圖與動態偵測繪圖區 -->
+        <!-- 圖表與偵測結果區 -->
         <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            <!-- 左側 2 欄：Yahoo 股市 / TradingView 即時 K 線圖嵌入 -->
-            <div class="lg:col-col-span-2 bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between shadow-xl">
+            <!-- K 線繪製區 -->
+            <div class="lg:col-span-2 bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between shadow-xl">
                 <div class="flex justify-between items-center mb-3">
                     <div class="flex items-center gap-2">
-                        <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <h2 class="text-base font-bold text-white" id="chartTitle">Yahoo 股市 / 即時走勢與 K 線圖 (2330.TW)</h2>
+                        <span id="statusDot" class="inline-block w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                        <h2 class="text-base font-bold text-white" id="chartTitle">實時 K 線圖 (2330)</h2>
                     </div>
-                    <div class="flex gap-2">
-                        <button onclick="switchTimeframe('D')" class="text-xs bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 px-2 py-1 rounded hover:bg-indigo-500/40">日 K (大層級)</button>
-                        <button onclick="switchTimeframe('60')" class="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded hover:bg-slate-600">60分 K (小層級)</button>
-                    </div>
+                    <span class="text-xs text-slate-400" id="dataTime">數據更新時間：--</span>
                 </div>
 
-                <!-- 嵌入式圖表容器 -->
-                <div class="relative w-full h-[420px] bg-slate-950 rounded-lg overflow-hidden border border-slate-800" id="tradingview_container">
-                    <!-- TradingView / Yahoo 線圖組件 -->
-                </div>
+                <!-- Canvas 圖表容器 -->
+                <div id="chartContainer" class="w-full h-[400px] bg-slate-950 rounded-lg overflow-hidden border border-slate-800"></div>
             </div>
 
-            <!-- 右側 1 欄：即時 K 線特徵動態掃描面板 -->
+            <!-- 即時動態偵測面板 -->
             <div class="bg-slate-800 border border-slate-700 rounded-xl p-5 flex flex-col justify-between space-y-4">
                 <div>
                     <div class="flex items-center justify-between pb-3 border-b border-slate-700">
                         <h3 class="font-bold text-white flex items-center gap-2">
-                            <span class="text-amber-400">⚡</span> Yahoo 線圖實時掃描結果
+                            <span class="text-amber-400">⚡</span> 實時 K 棒特徵計算
                         </h3>
-                        <span class="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-mono" id="scanStatus">已連線掃描</span>
+                        <span id="scanBadge" class="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded font-mono">等待計算</span>
                     </div>
 
                     <div class="mt-4 space-y-3">
                         <div>
-                            <span class="text-xs text-slate-400 block mb-1">大層級 K 棒形態識別：</span>
+                            <span class="text-xs text-slate-400 block mb-1">偵測到的 K 棒型態：</span>
                             <div id="detectedPatterns" class="flex flex-wrap gap-1.5">
-                                <span class="badge bg-purple-500/20 text-purple-300 border border-purple-500/30">長下影線 K</span>
-                                <span class="badge bg-amber-500/20 text-amber-300 border border-amber-500/30">大量防守 K 棒</span>
+                                <span class="text-xs text-slate-500">尚無資料</span>
                             </div>
                         </div>
 
                         <div>
-                            <span class="text-xs text-slate-400 block mb-1">關鍵價位防守區 (大量 K 高低點)：</span>
+                            <span class="text-xs text-slate-400 block mb-1">關鍵價位 (近 20 日爆量 K 棒防守區)：</span>
                             <div class="bg-slate-900 p-2.5 rounded border border-slate-700 text-xs font-mono space-y-1">
-                                <div class="flex justify-between"><span class="text-slate-400">壓力/箱頂價：</span><span class="text-rose-400 font-bold" id="levelResistance">985.0</span></div>
-                                <div class="flex justify-between"><span class="text-slate-400">支撐/箱底價：</span><span class="text-emerald-400 font-bold" id="levelSupport">930.0</span></div>
+                                <div class="flex justify-between"><span class="text-slate-400">關鍵壓力價：</span><span class="text-rose-400 font-bold" id="levelResistance">--</span></div>
+                                <div class="flex justify-between"><span class="text-slate-400">關鍵支撐價：</span><span class="text-emerald-400 font-bold" id="levelSupport">--</span></div>
                             </div>
                         </div>
 
                         <div>
-                            <span class="text-xs text-slate-400 block mb-1">波段角度與動能：</span>
-                            <div class="text-xs bg-slate-900 p-2.5 rounded border border-slate-700 text-slate-300" id="waveAngleDesc">
-                                高角度陡峭拉升後，目前呈現平緩橫盤強勢整理。
+                            <span class="text-xs text-slate-400 block mb-1">均線排列（5MA / 10MA / 20MA）：</span>
+                            <div class="text-xs bg-slate-900 p-2.5 rounded border border-slate-700 text-slate-300 font-mono" id="maStatusDesc">
+                                計算中...
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <div class="pt-3 border-t border-slate-700">
-                    <span class="text-xs text-slate-400 block mb-1">系統綜合建議：</span>
-                    <div id="actionBadge" class="text-lg font-extrabold text-amber-400 bg-amber-400/10 p-2.5 rounded-lg border border-amber-400/20 text-center">
-                        WATCH_BUY (小層級尋找轉折)
+                    <span class="text-xs text-slate-400 block mb-1">自動判斷指令：</span>
+                    <div id="actionBadge" class="text-lg font-extrabold text-slate-400 bg-slate-700/50 p-2.5 rounded-lg border border-slate-600 text-center">
+                        WAITING
                     </div>
                 </div>
             </div>
 
         </section>
 
-        <!-- 第二區塊：大小層級狀態與倉位管理 -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            <!-- 1. 多時間層級狀態 -->
-            <div class="bg-slate-800 rounded-xl p-5 border border-slate-700">
-                <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">多時間層級狀態 (看大做小)</h2>
-                <div class="space-y-3 text-sm">
-                    <div class="flex justify-between items-center">
-                        <span class="text-slate-300">大層級 (日K) 均線：</span>
-                        <span id="largeMA" class="badge bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">多頭排列</span>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-slate-300">小層級 (60m) 均線：</span>
-                        <span id="smallMA" class="badge bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">多頭排列</span>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-slate-300">允許開啟槓桿：</span>
-                        <span id="leverageStatus" class="font-bold text-emerald-400 text-xs">✓ 是 (大小層級多排)</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 2. 金字塔倉位管理 -->
-            <div class="bg-slate-800 rounded-xl p-5 border border-slate-700">
-                <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">金字塔加碼機制</h2>
-                <div class="grid grid-cols-4 gap-1 text-center font-mono text-xs">
-                    <div class="bg-indigo-950/60 border border-indigo-500/30 p-2 rounded">
-                        <div class="text-indigo-400 font-bold">首批</div>
-                        <div class="text-slate-200 mt-1">40%</div>
-                    </div>
-                    <div class="bg-indigo-950/40 border border-indigo-500/20 p-2 rounded">
-                        <div class="text-indigo-300 font-bold">第2次</div>
-                        <div class="text-slate-200 mt-1">30%</div>
-                    </div>
-                    <div class="bg-indigo-950/30 border border-indigo-500/20 p-2 rounded">
-                        <div class="text-indigo-300 font-bold">第3次</div>
-                        <div class="text-slate-200 mt-1">20%</div>
-                    </div>
-                    <div class="bg-indigo-950/20 border border-indigo-500/20 p-2 rounded">
-                        <div class="text-indigo-300 font-bold">第4次</div>
-                        <div class="text-slate-200 mt-1">10%</div>
-                    </div>
-                </div>
-                <p class="text-xs text-slate-400 mt-3">僅在「已經獲利」且小層級出現回檔不破高時才允許加碼[cite: 2]。</p>
-            </div>
-
-            <!-- 3. 出場與減碼機制 -->
-            <div class="bg-slate-800 rounded-xl p-5 border border-slate-700">
-                <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">離場與防守條款[cite: 2]</h2>
-                <div class="space-y-2 text-xs">
-                    <div class="flex justify-between bg-slate-900 p-2 rounded border border-slate-700/60">
-                        <span class="text-slate-400">移動停損點：</span>
-                        <span class="text-rose-300 font-semibold">依序跌破 13MA / 21MA[cite: 2]</span>
-                    </div>
-                    <div class="flex justify-between bg-slate-900 p-2 rounded border border-slate-700/60">
-                        <span class="text-slate-400">暴漲股特例：</span>
-                        <span class="text-amber-300 font-semibold">出現轉折一次減碼 50%[cite: 2]</span>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-        <!-- 第三區塊：ABC 對策計畫卡片 -->
+        <!-- ABC 對策卡片 -->
         <div class="bg-slate-800 rounded-xl p-5 border border-slate-700 space-y-4">
             <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                <span class="text-indigo-400">■</span> 實時 K 線對應之 ABC 計畫指南[cite: 2, 2]
+                <span class="text-indigo-400">■</span> 自動對應 ABC 交易對策[cite: 2, 2]
             </h3>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="bg-emerald-950/40 border border-emerald-500/30 p-3.5 rounded-lg">
-                    <div class="font-bold text-emerald-400 text-sm mb-1">A 計畫：真實突破（主情境）[cite: 2]</div>
-                    <div class="text-xs text-slate-300">突破大量 K 棒高點（壓力價）後持倉，跌回壓力區下方則立即止損[cite: 2]。</div>
+                    <div class="font-bold text-emerald-400 text-sm mb-1">A 計畫：突破進場（主情境）</div>
+                    <div class="text-xs text-slate-300">收盤價強勢突破爆量 K 棒高點時進場，若收盤跌回壓力線下方立即止損。</div>
                 </div>
 
                 <div class="bg-amber-950/40 border border-amber-500/30 p-3.5 rounded-lg">
-                    <div class="font-bold text-amber-400 text-sm mb-1">B 計畫：區間震盪（回檔處理）[cite: 2]</div>
-                    <div class="text-xs text-slate-300">突破失敗重回箱體內，於箱底與箱頂間進行低買高賣操作[cite: 2]。</div>
+                    <div class="font-bold text-amber-400 text-sm mb-1">B 計畫：回檔尋找第二不破底</div>
+                    <div class="text-xs text-slate-300">出現長下影線時不追高，切入小層級等待二次回檔不破底時建立首批 40% 倉位[cite: 2, 2]。</div>
                 </div>
 
                 <div class="bg-rose-950/40 border border-rose-500/30 p-3.5 rounded-lg">
-                    <div class="font-bold text-rose-400 text-sm mb-1">C 計畫：假突破反手（防守反擊）[cite: 2]</div>
-                    <div class="text-xs text-slate-300">若確認為假突破且跌破大量 K 棒低點（支撐價），於小層級反彈轉折點放空[cite: 2]。</div>
+                    <div class="font-bold text-rose-400 text-sm mb-1">C 計畫：防守離場 / 跌破防守區[cite: 2]</div>
+                    <div class="text-xs text-slate-300">跌破爆量 K 棒低點或跌破 20MA 時，無條件清倉或執行防守反擊[cite: 2]。</div>
                 </div>
             </div>
         </div>
 
     </div>
 
-    <!-- 載入 TradingView 繪圖與數據 Engine -->
-    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
     <script>
-        let currentSymbol = "2330.TW";
-        let currentTimeframe = "D";
+        let chart, candlestickSeries, ma5Series, ma20Series;
 
-        // 初始化繪製即時 Yahoo / TradingView K線圖
-        function loadChart(symbol, timeframe) {
-            document.getElementById("tradingview_container").innerHTML = "";
+        function initChart() {
+            const container = document.getElementById('chartContainer');
+            container.innerHTML = '';
             
-            // 轉換台股代號格式以符合全球圖表標準
-            let formattedSymbol = symbol;
-            if(symbol.includes('.TW')) {
-                formattedSymbol = 'TWSE:' + symbol.replace('.TW', '');
-            }
-
-            new TradingView.widget({
-                "autosize": true,
-                "symbol": formattedSymbol,
-                "interval": timeframe,
-                "timezone": "Asia/Taipei",
-                "theme": "dark",
-                "style": "1", // K線圖型態
-                "locale": "zh_TW",
-                "toolbar_bg": "#1e293b",
-                "enable_publishing": false,
-                "hide_side_toolbar": false,
-                "allow_symbol_change": true,
-                "container_id": "tradingview_container",
-                "studies": [
-                    "MASimple@tv-basicstudies", // 載入均線
-                    "Volume@tv-basicstudies"    // 載入成交量
-                ]
+            chart = LightweightCharts.createChart(container, {
+                layout: { backgroundColor: '#0f172a', textColor: '#cbd5e1' },
+                grid: { vertLines: { color: '#1e293b' }, horzLines: { color: '#1e293b' } },
+                crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+                timeScale: { borderColor: '#334155' }
             });
 
-            document.getElementById('chartTitle').innerText = `Yahoo 股市 / 即時走勢與 K 線圖 (${symbol})`;
-            scanChartData(symbol);
+            candlestickSeries = chart.addCandlestickSeries({
+                upColor: '#ef4444', downColor: '#22c55e',
+                borderUpColor: '#ef4444', borderDownColor: '#22c55e',
+                wickUpColor: '#ef4444', wickDownColor: '#22c55e'
+            });
+
+            ma5Series = chart.addLineSeries({ color: '#f59e0b', lineWidth: 1.5 });
+            ma20Series = chart.addLineSeries({ color: '#3b82f6', lineWidth: 1.5 });
         }
 
-        // 切換時間層級
-        function switchTimeframe(tf) {
-            currentTimeframe = tf;
-            loadChart(currentSymbol, currentTimeframe);
+        // 移動平均線計算輔助函式
+        function calculateMA(data, period) {
+            let result = [];
+            for (let i = 0; i < data.length; i++) {
+                if (i < period - 1) continue;
+                let sum = 0;
+                for (let j = 0; j < period; j++) sum += data[i - j].close;
+                result.push({ time: data[i].time, value: sum / period });
+            }
+            return result;
         }
 
-        // 切換股票標的
-        function changeSymbol() {
-            const inputVal = document.getElementById('symbolInput').value.trim();
-            if(inputVal) {
-                currentSymbol = inputVal.toUpperCase();
-                loadChart(currentSymbol, currentTimeframe);
+        // 核心偵測運算 Engine
+        function analyzeKlines(klineData) {
+            if (klineData.length < 20) return;
+
+            const latest = klineData[klineData.length - 1];
+            const prev = klineData[klineData.length - 2];
+            
+            // 1. 計算均線
+            const ma5List = calculateMA(klineData, 5);
+            const ma20List = calculateMA(klineData, 20);
+            
+            const curMA5 = ma5List[ma5List.length - 1].value;
+            const curMA20 = ma20List[ma20List.length - 1].value;
+
+            // 2. 尋找近 20 日的最大量 K 棒防守區
+            let maxVolIndex = klineData.length - 20;
+            for(let i = klineData.length - 20; i < klineData.length; i++) {
+                if(klineData[i].volume > klineData[maxVolIndex].volume) {
+                    maxVolIndex = i;
+                }
+            }
+            const maxVolBar = klineData[maxVolIndex];
+
+            // 3. 識別 K 棒特徵
+            let patterns = [];
+            const body = Math.abs(latest.close - latest.open);
+            const lowerShadow = Math.min(latest.open, latest.close) - latest.low;
+            
+            if (lowerShadow > body * 1.8) patterns.push("長下影線 K");
+            if (latest.volume > maxVolBar.volume * 0.8) patterns.push("大量防守 K 棒");
+
+            // UI 渲染更新
+            document.getElementById('levelResistance').innerText = maxVolBar.high.toFixed(1);
+            document.getElementById('levelSupport').innerText = maxVolBar.low.toFixed(1);
+
+            const patternContainer = document.getElementById('detectedPatterns');
+            patternContainer.innerHTML = '';
+            if(patterns.length === 0) patterns.push("標準 K 棒");
+            patterns.forEach(p => {
+                const badge = document.createElement('span');
+                badge.className = 'px-2 py-1 rounded text-xs bg-indigo-500/20 text-indigo-300 border border-indigo-500/30';
+                badge.innerText = p;
+                patternContainer.appendChild(badge);
+            });
+
+            // 4. 多頭/空頭判斷與 Action 建議
+            const maDesc = document.getElementById('maStatusDesc');
+            const actionBadge = document.getElementById('actionBadge');
+
+            if (curMA5 > curMA20) {
+                maDesc.innerHTML = `<span class="text-emerald-400 font-bold">多頭排列</span> (5MA: ${curMA5.toFixed(1)} > 20MA: ${curMA20.toFixed(1)})[cite: 2]`;
+                if(patterns.includes("長下影線 K")) {
+                    actionBadge.className = "text-lg font-extrabold text-emerald-400 bg-emerald-500/10 p-2.5 rounded-lg border border-emerald-500/30 text-center";
+                    actionBadge.innerText = "BUY_SIGNAL (多頭下影線支撐)";
+                } else {
+                    actionBadge.className = "text-lg font-extrabold text-amber-400 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/30 text-center";
+                    actionBadge.innerText = "WATCH_BUY (多頭偏多觀察)";
+                }
+            } else {
+                maDesc.innerHTML = `<span class="text-rose-400 font-bold">空頭/整理排列</span> (5MA: ${curMA5.toFixed(1)} < 20MA: ${curMA20.toFixed(1)})`;
+                actionBadge.className = "text-lg font-extrabold text-rose-400 bg-rose-500/10 p-2.5 rounded-lg border border-rose-500/30 text-center";
+                actionBadge.innerText = "WAIT_OR_SHORT (偏空觀望)";
+            }
+
+            document.getElementById('scanBadge').innerText = "偵測完成";
+            document.getElementById('scanBadge').className = "text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-mono";
+            document.getElementById('statusDot').className = "inline-block w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse";
+        }
+
+        // 向 FinMind API 抓取真實台股即時與歷史 K 線數據
+        async function fetchAndScanData() {
+            const stockId = document.getElementById('symbolInput').value.trim() || "2330";
+            document.getElementById('chartTitle').innerText = `實時 K 線圖 (${stockId})`;
+            document.getElementById('scanBadge').innerText = "即時連線抓取中...";
+
+            // 自動設定抓取近 90 天數據
+            const today = new Date();
+            const past = new Date(today.getTime() - (90 * 24 * 60 * 60 * 1000));
+            const startDate = past.toISOString().split('T')[0];
+
+            const apiUrl = `https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${stockId}&start_date=${startDate}`;
+
+            try {
+                const response = await fetch(apiUrl);
+                const result = await response.json();
+                
+                if (result.data && result.data.length > 0) {
+                    const formattedData = result.data.map(item => ({
+                        time: item.date,
+                        open: item.open,
+                        high: item.max,
+                        low: item.min,
+                        close: item.close,
+                        volume: item.Trading_Volume
+                    }));
+
+                    // 更新圖表
+                    candlestickSeries.setData(formattedData);
+                    ma5Series.setData(calculateMA(formattedData, 5));
+                    ma20Series.setData(calculateMA(formattedData, 20));
+                    chart.timeScale().fitContent();
+
+                    // 更新時間
+                    document.getElementById('dataTime').innerText = `最新數據：${formattedData[formattedData.length - 1].time}`;
+
+                    // 執行自動技術偵測
+                    analyzeKlines(formattedData);
+                } else {
+                    alert("查無此股票代號數據，請確認後重試。");
+                }
+            } catch (error) {
+                console.error("API Fetch Error:", error);
+                alert("數據連線失敗，請檢查網路。");
             }
         }
 
-        // 模擬動態掃描走勢圖數據並計算關鍵價位與K棒型態
-        function scanChartData(symbol) {
-            document.getElementById('scanStatus').innerText = "掃描中...";
-            
-            setTimeout(() => {
-                document.getElementById('scanStatus').innerText = "連線監控中";
-                
-                // 根據標的生成相對應的模擬技術指標數值
-                const basePrice = symbol.includes("2330") ? 950 : 150;
-                const resistance = (basePrice * 1.05).toFixed(1);
-                const support = (basePrice * 0.95).toFixed(1);
-
-                document.getElementById('levelResistance').innerText = resistance;
-                document.getElementById('levelSupport').innerText = support;
-
-                // 動態更新掃描結果與對策
-                document.getElementById('detectedPatterns').innerHTML = `
-                    <span class="badge bg-purple-500/20 text-purple-300 border border-purple-500/30">長下影線 K</span>
-                    <span class="badge bg-amber-500/20 text-amber-300 border border-amber-500/30">爆量防守 K 棒</span>
-                `;
-
-                document.getElementById('actionBadge').innerText = "WATCH_BUY (小層級尋找轉折)";
-            }, 600);
-        }
-
-        // 初始載入
         window.onload = function() {
-            loadChart(currentSymbol, currentTimeframe);
+            initChart();
+            fetchAndScanData();
         };
     </script>
 </body>
