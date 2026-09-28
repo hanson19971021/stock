@@ -1,675 +1,570 @@
 <!DOCTYPE html>
-<html lang="zh-TW" class="dark">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock From Zero - 專業選股與形態策略系統</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js for Trading Chart Simulation -->
+    <title>Stock From Zero - 台股即時選股與策略分析系統</title>
+    <!-- Chart.js 視覺化圖庫 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Font Awesome Icons -->
+    <!-- FontAwesome 圖示庫 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        darkBg: '#0b0e14',
-                        cardBg: '#151921',
-                        panelBg: '#1c212d',
-                        borderClr: '#2a3142',
-                        bullish: '#22c55e', // 漲 (綠)
-                        bearish: '#ef4444', // 跌 (紅)
-                        accentYellow: '#eab308',
-                        accentPink: '#ec4899', // 34MA / 生命線
-                        accentCyan: '#06b6d4',
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'system-ui', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace'],
-                    }
-                }
+    
+    <style>
+        :root {
+            --bg-dark: #0f141c;
+            --card-bg: #1a212d;
+            --card-border: #2a3447;
+            --accent-pink: #ff2e93;
+            --accent-yellow: #f59e0b;
+            --up-green: #26a69a;
+            --down-red: #ef5350;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            padding: 20px;
+            font-size: 14px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--card-border);
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(45deg, #3b82f6, var(--accent-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-badge {
+            background: rgba(38, 166, 154, 0.15);
+            color: var(--up-green);
+            border: 1px solid var(--up-green);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .search-bar-container {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .search-input-group {
+            display: flex;
+            align-items: center;
+            background: var(--bg-dark);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            padding: 0 12px;
+            flex-grow: 1;
+            max-width: 400px;
+        }
+
+        .search-input-group input {
+            background: transparent;
+            border: none;
+            color: #fff;
+            padding: 10px;
+            width: 100%;
+            outline: none;
+        }
+
+        .btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .btn-pink {
+            background: var(--accent-pink);
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 320px 1fr 340px;
+            gap: 20px;
+        }
+
+        @media (max-width: 1200px) {
+            .grid-layout {
+                grid-template-columns: 1fr;
             }
         }
-    </script>
-    <style>
-        /* Custom scrollbar for dark tech aesthetic */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
+
+        .panel {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 16px;
         }
-        ::-webkit-scrollbar-track {
-            background: #0b0e14;
+
+        .panel-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #fff;
         }
-        ::-webkit-scrollbar-thumb {
-            background: #2a3142;
-            border-radius: 3px;
+
+        .filter-section {
+            margin-bottom: 15px;
         }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #3b455b;
+
+        .filter-section label {
+            display: block;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            font-size: 0.85rem;
         }
-        .glow-pink {
-            box-shadow: 0 0 12px rgba(236, 72, 153, 0.3);
+
+        .filter-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
         }
-        .glow-yellow {
-            box-shadow: 0 0 12px rgba(234, 179, 8, 0.25);
+
+        .filter-btn {
+            background: var(--bg-dark);
+            border: 1px solid var(--card-border);
+            color: var(--text-main);
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 0.85rem;
+            transition: 0.2s;
+        }
+
+        .filter-btn.active {
+            border-color: var(--accent-pink);
+            color: var(--accent-pink);
+            background: rgba(255, 46, 147, 0.1);
+        }
+
+        .stock-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .stock-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: var(--bg-dark);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .stock-item:hover, .stock-item.active {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .tag {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .tag-pattern {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--accent-yellow);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 380px;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .adam-calculator {
+            background: rgba(15, 20, 28, 0.6);
+            border: 1px dashed var(--card-border);
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 15px;
+        }
+
+        .adam-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .adam-input-group input {
+            width: 100%;
+            background: var(--bg-dark);
+            border: 1px solid var(--card-border);
+            color: #fff;
+            padding: 6px 8px;
+            border-radius: 4px;
+            margin-top: 4px;
+        }
+
+        .adam-result {
+            margin-top: 10px;
+            padding: 8px;
+            background: rgba(255, 46, 147, 0.15);
+            border-radius: 4px;
+            text-align: center;
+            color: var(--accent-pink);
+            font-weight: bold;
+        }
+
+        .basket-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .basket-box {
+            background: var(--bg-dark);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            padding: 10px;
+            min-height: 120px;
+        }
+
+        .basket-header {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
         }
     </style>
 </head>
-<body class="bg-darkBg text-slate-200 font-sans min-h-screen flex flex-col antialiased selection:bg-slate-700 selection:text-white">
+<body>
 
-    <!-- Top Navigation Header -->
-    <header class="border-b border-borderClr bg-cardBg px-4 py-3 sticky top-0 z-50 shadow-md">
-        <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg bg-gradient-to-tr from-accentPink via-purple-600 to-accentYellow flex items-center justify-center font-bold text-white text-xl shadow-lg">
-                    SFZ
-                </div>
-                <div>
-                    <h1 class="text-lg font-bold tracking-wide text-white flex items-center gap-2">
-                        Stock From Zero <span class="text-xs font-mono px-2 py-0.5 rounded bg-accentPink/20 text-accentPink border border-accentPink/30">選股策略系統</span>
-                    </h1>
-                    <p class="text-xs text-slate-400">生命線 (34MA) 轉折 ‧ 形態篩選 ‧ 雙籃波段管理</p>
+    <div class="header">
+        <div class="logo">
+            <i class="fa-solid fa-chart-line fa-xl" style="color: var(--accent-pink);"></i>
+            <h1>Stock From Zero 選股幫</h1>
+        </div>
+        <div class="status-badge">
+            <i class="fa-solid fa-wifi"></i> FinMind API 連線已就緒
+        </div>
+    </div>
+
+    <!-- 頂部即時台股搜尋與串接 -->
+    <div class="search-bar-container">
+        <div class="search-input-group">
+            <i class="fa-solid fa-magnifying-glass" style="color: var(--text-muted);"></i>
+            <input type="text" id="stockSearchInput" placeholder="輸入台股代號 (例: 2330, 2603, 6104)...">
+        </div>
+        <button class="btn" onclick="fetchLiveStockData()"><i class="fa-solid fa-cloud-arrow-down"></i> 線上抓取數據 (FinMind)</button>
+        <span style="color: var(--text-muted); font-size: 0.8rem;">自動試算 34MA 生命線與講義四種型態</span>
+    </div>
+
+    <div class="grid-layout">
+        <!-- 左側：篩選器與股票選單 -->
+        <div class="panel">
+            <div class="panel-title"><i class="fa-solid fa-filter"></i> 講義核心整理型態</div>
+            
+            <div class="filter-section">
+                <label>型態過濾</label>
+                <div class="filter-options">
+                    <div class="filter-btn active" onclick="setPatternFilter('all')">全部類型</div>
+                    <div class="filter-btn" onclick="setPatternFilter('橫盤整理')">橫盤整理</div>
+                    <div class="filter-btn" onclick="setPatternFilter('前高之上')">前高之上</div>
+                    <div class="filter-btn" onclick="setPatternFilter('前低之上')">前低之上</div>
                 </div>
             </div>
 
-            <!-- Strategy Tabs -->
-            <div class="flex items-center bg-darkBg p-1 rounded-lg border border-borderClr text-sm font-medium">
-                <button id="tab-bullish" onclick="switchStrategy('bullish')" class="strategy-tab px-4 py-1.5 rounded-md transition-all flex items-center gap-2 bg-bullish/20 text-bullish border border-bullish/40">
-                    <i class="fa-solid fa-arrow-trend-up"></i> 強勢股篩選
-                </button>
-                <button id="tab-support" onclick="switchStrategy('support')" class="strategy-tab px-4 py-1.5 rounded-md transition-all flex items-center gap-2 text-slate-400 hover:text-white">
-                    <i class="fa-solid fa-chart-area"></i> 均線支撐股
-                </button>
-                <button id="tab-bearish" onclick="switchStrategy('bearish')" class="strategy-tab px-4 py-1.5 rounded-md transition-all flex items-center gap-2 text-slate-400 hover:text-white">
-                    <i class="fa-solid fa-arrow-trend-down"></i> 弱勢股/空方
-                </button>
-            </div>
-
-            <!-- Basket Summary Quick Action -->
-            <div class="flex items-center gap-3">
-                <button onclick="openBasketModal()" class="px-3 py-1.5 rounded-lg bg-panelBg hover:bg-borderClr border border-borderClr text-xs font-mono flex items-center gap-2 transition-all">
-                    <span class="text-accentYellow"><i class="fa-solid fa-boxes-stacked"></i> 股票籃</span>
-                    <span class="px-1.5 py-0.2 rounded bg-bullish/20 text-bullish text-[10px]" id="nav-run-count">行進: 0</span>
-                    <span class="px-1.5 py-0.2 rounded bg-accentYellow/20 text-accentYellow text-[10px]" id="nav-consolidation-count">盤整: 0</span>
-                </button>
+            <div class="panel-title" style="margin-top: 20px;"><i class="fa-solid fa-list"></i> 股票清單</div>
+            <div class="stock-list" id="stockList">
+                <!-- 動態注入股票項目 -->
             </div>
         </div>
-    </header>
 
-    <!-- Main Dashboard Container -->
-    <main class="max-w-7xl mx-auto w-full px-4 py-5 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5">
-
-        <!-- LEFT SIDEBAR: Strategy Parameters & Pattern Filter (4 cols) -->
-        <section class="lg:col-span-4 flex flex-col gap-5">
-
-            <!-- 1. Strategy Description & Status -->
-            <div class="bg-cardBg rounded-xl p-4 border border-borderClr shadow-sm">
-                <div class="flex justify-between items-center mb-2">
-                    <h2 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-sliders text-accentYellow"></i> 當前策略邏輯
-                    </h2>
-                    <span id="current-strategy-badge" class="text-xs px-2 py-0.5 rounded-full bg-bullish/20 text-bullish font-mono">強勢股模式</span>
-                </div>
-                <p id="strategy-desc" class="text-xs text-slate-400 leading-relaxed">
-                    預設技術條件：週均線多頭排列 (5>21>89)、34MA 向上且價格在 34MA 之上、量能擴增創 3 週新高，尋找高動能起漲股。
-                </p>
+        <!-- 中間：互動式 K 線與 34MA 圖表 + 亞當理論算頭 -->
+        <div class="panel">
+            <div class="panel-title" id="chartTitle">
+                <i class="fa-solid fa-chart-candlestick"></i> 技術圖表 (34MA 生命線)
+            </div>
+            
+            <div class="chart-container">
+                <canvas id="mainChart"></canvas>
             </div>
 
-            <!-- 2. Parameter Tuning Panel -->
-            <div class="bg-cardBg rounded-xl p-4 border border-borderClr shadow-sm">
-                <div class="flex justify-between items-center mb-3">
-                    <h2 class="text-sm font-semibold text-slate-200 flex items-center gap-2">
-                        <i class="fa-solid fa-gears text-accentCyan"></i> 參數微調面板 (大盤情境)
-                    </h2>
-                    <button onclick="resetParameters()" class="text-[11px] text-slate-400 hover:text-slate-200 transition-colors">重置預設</button>
+            <!-- 亞當理論目標價試算器 -->
+            <div class="adam-calculator">
+                <div style="font-weight: 600; color: var(--accent-yellow); font-size: 0.9rem;">
+                    <i class="fa-solid fa-arrows-up-down-left-right"></i> 亞當理論（翻亞當）目標價對稱試算
                 </div>
-                
-                <div class="space-y-4 text-xs">
-                    <!-- Volume Filter -->
-                    <div>
-                        <div class="flex justify-between text-slate-300 mb-1">
-                            <span>近 5 日日均量門檻 (張)</span>
-                            <span id="val-min-vol" class="font-mono text-accentYellow">10,000</span>
-                        </div>
-                        <input type="range" id="param-min-vol" min="1000" max="30000" step="1000" value="10000" oninput="updateParamUI()" class="w-full accent-accentYellow bg-darkBg rounded-lg cursor-pointer">
+                <div class="adam-inputs">
+                    <div class="adam-input-group">
+                        <label style="font-size: 0.75rem; color: var(--text-muted);">突破/翻轉點 (A)</label>
+                        <input type="number" id="adamA" value="100" oninput="calculateAdam()">
                     </div>
-
-                    <!-- Moving Average System -->
-                    <div>
-                        <label class="block text-slate-300 mb-1">均線週期系統</label>
-                        <select id="param-ma-type" onchange="updateParamUI()" class="w-full bg-darkBg border border-borderClr rounded-lg px-2.5 py-1.5 text-slate-200 focus:outline-none focus:border-accentCyan">
-                            <option value="fibonacci">費波南希數列 (5, 8, 13, 21, 34, 55, 89) - 講義建議</option>
-                            <option value="standard">傳統日均線 (5, 10, 20, 30, 60, 90)</option>
-                        </select>
+                    <div class="adam-input-group">
+                        <label style="font-size: 0.75rem; color: var(--text-muted);">區間高點/低點 (B)</label>
+                        <input type="number" id="adamB" value="120" oninput="calculateAdam()">
                     </div>
-
-                    <!-- Avg Price Gain % -->
-                    <div>
-                        <div class="flex justify-between text-slate-300 mb-1">
-                            <span>近 3~6 週平均漲幅 %</span>
-                            <span id="val-min-gain" class="font-mono text-bullish">&gt; 5%</span>
-                        </div>
-                        <input type="range" id="param-min-gain" min="0" max="20" step="1" value="5" oninput="updateParamUI()" class="w-full accent-bullish bg-darkBg rounded-lg cursor-pointer">
+                    <div class="adam-input-group">
+                        <label style="font-size: 0.75rem; color: var(--text-muted);">對稱倍數</label>
+                        <input type="number" id="adamRatio" value="1" step="0.5" oninput="calculateAdam()">
                     </div>
-
-                    <!-- Price Floor -->
-                    <div>
-                        <div class="flex justify-between text-slate-300 mb-1">
-                            <span>股價下限 (元)</span>
-                            <span id="val-min-price" class="font-mono text-accentCyan">20 元</span>
-                        </div>
-                        <input type="range" id="param-min-price" min="10" max="100" step="5" value="20" oninput="updateParamUI()" class="w-full accent-accentCyan bg-darkBg rounded-lg cursor-pointer">
-                    </div>
+                </div>
+                <div class="adam-result" id="adamTargetResult">
+                    預估翻亞當目標價：140.00 元
                 </div>
             </div>
+        </div>
 
-            <!-- 3. Four Consolidation Pattern Selector (Core Strategy) -->
-            <div class="bg-cardBg rounded-xl p-4 border border-borderClr shadow-sm">
-                <h2 class="text-sm font-semibold text-slate-200 mb-1 flex items-center gap-2">
-                    <i class="fa-solid fa-shapes text-accentPink"></i> 四種整理型態分類 (講義核心)
-                </h2>
-                <p class="text-[11px] text-slate-400 mb-3">請選擇欲篩選的洗盤整理結構：</p>
-
-                <div class="space-y-2" id="pattern-selector-group">
-                    <!-- Pattern 1 -->
-                    <label class="flex items-start gap-2.5 p-2.5 rounded-lg border border-borderClr bg-panelBg hover:border-slate-500 cursor-pointer transition-all">
-                        <input type="radio" name="pattern-filter" value="1" onchange="runFilter()" class="mt-0.5 accent-accentPink" checked>
-                        <div>
-                            <div class="text-xs font-semibold text-accentYellow flex items-center gap-1.5">
-                                1. 橫盤整理 (量縮價穩) <span class="text-[10px] px-1 bg-amber-500/20 text-amber-300 rounded">最強飆股型態</span>
-                            </div>
-                            <p class="text-[11px] text-slate-400 mt-0.5">極窄幅震盪、波動收斂，極易引爆下一波波段。</p>
-                        </div>
-                    </label>
-
-                    <!-- Pattern 2 -->
-                    <label class="flex items-start gap-2.5 p-2.5 rounded-lg border border-borderClr bg-panelBg hover:border-slate-500 cursor-pointer transition-all">
-                        <input type="radio" name="pattern-filter" value="2" onchange="runFilter()" class="mt-0.5 accent-accentPink">
-                        <div>
-                            <div class="text-xs font-semibold text-emerald-400">
-                                2. 在前波高點之上整理 <span class="text-[10px] px-1 bg-emerald-500/20 text-emerald-300 rounded">強勢</span>
-                            </div>
-                            <p class="text-[11px] text-slate-400 mt-0.5">突破後回測不破高，籌碼鎖碼極佳。</p>
-                        </div>
-                    </label>
-
-                    <!-- Pattern 3 -->
-                    <label class="flex items-start gap-2.5 p-2.5 rounded-lg border border-borderClr bg-panelBg hover:border-slate-500 cursor-pointer transition-all">
-                        <input type="radio" name="pattern-filter" value="3" onchange="runFilter()" class="mt-0.5 accent-accentPink">
-                        <div>
-                            <div class="text-xs font-semibold text-slate-300">
-                                3. 在前波低點之上整理 <span class="text-[10px] px-1 bg-slate-600/30 text-slate-300 rounded">一般</span>
-                            </div>
-                            <p class="text-[11px] text-slate-400 mt-0.5">次級強勢，箱型震盪，需要等待過一二訊號確認。</p>
-                        </div>
-                    </label>
-
-                    <!-- Pattern 4 -->
-                    <label class="flex items-start gap-2.5 p-2.5 rounded-lg border border-borderClr bg-panelBg hover:border-slate-500 cursor-pointer transition-all">
-                        <input type="radio" name="pattern-filter" value="4" onchange="runFilter()" class="mt-0.5 accent-accentPink">
-                        <div>
-                            <div class="text-xs font-semibold text-rose-400">
-                                4. 破前波低點 <span class="text-[10px] px-1 bg-rose-500/20 text-rose-300 rounded">弱勢/避開</span>
-                            </div>
-                            <p class="text-[11px] text-slate-400 mt-0.5">籌碼潰散，拉回過深，多頭結構已遭破壞。</p>
-                        </div>
-                    </label>
-                </div>
-            </div>
-
-            <!-- Run Filter Action -->
-            <button onclick="runFilter()" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-accentPink to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-semibold text-sm shadow-lg flex items-center justify-center gap-2 transition-all">
-                <i class="fa-solid fa-filter"></i> 模擬執行選股掃瞄
-            </button>
-        </section>
-
-        <!-- RIGHT CONTENT: Filter Results & Interactive Chart (8 cols) -->
-        <section class="lg:col-span-8 flex flex-col gap-5">
-
-            <!-- Stock List Results Table -->
-            <div class="bg-cardBg rounded-xl p-4 border border-borderClr shadow-sm flex flex-col">
-                <div class="flex justify-between items-center mb-3">
-                    <div class="flex items-center gap-2">
-                        <h2 class="text-sm font-semibold text-slate-200">
-                            <i class="fa-solid fa-list-check text-bullish"></i> 符合條件股票清單
-                        </h2>
-                        <span id="result-count" class="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">共 0 檔</span>
+        <!-- 右側：雙股票籃 (行進籃 / 盤整籃) -->
+        <div class="panel">
+            <div class="panel-title"><i class="fa-solid fa-box-archive"></i> 自選追蹤籃</div>
+            <div class="basket-container">
+                <div class="basket-box">
+                    <div class="basket-header">
+                        <span><i class="fa-solid fa-person-running" style="color: #26a69a;"></i> 行進籃 (強勢攻勢中)</span>
+                        <button style="background:none; border:none; color:var(--text-muted); cursor:pointer;" onclick="addToBasket('行進籃')">+ 加入當前</button>
                     </div>
-                    <div class="text-xs text-slate-400">
-                        點擊股票顯示「生命線 34MA」與「一過二起漲訊號」K線圖
-                    </div>
+                    <div id="runningBasket" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
                 </div>
 
-                <!-- Table Wrapper -->
-                <div class="overflow-x-auto rounded-lg border border-borderClr bg-darkBg">
-                    <table class="w-full text-left text-xs text-slate-300 font-mono">
-                        <thead class="bg-panelBg text-slate-400 border-b border-borderClr uppercase text-[11px]">
-                            <tr>
-                                <th class="py-2.5 px-3">代號/名稱</th>
-                                <th class="py-2.5 px-3">收盤價</th>
-                                <th class="py-2.5 px-3">漲跌幅</th>
-                                <th class="py-2.5 px-3">5日均量</th>
-                                <th class="py-2.5 px-3">34MA狀態</th>
-                                <th class="py-2.5 px-3">整理型態</th>
-                                <th class="py-2.5 px-3 text-center">加入股票籃</th>
-                            </tr>
-                        </thead>
-                        <tbody id="stock-list-tbody" class="divide-y divide-borderClr/60">
-                            <!-- Injected by JavaScript -->
-                        </tbody>
-                    </table>
+                <div class="basket-box">
+                    <div class="basket-header">
+                        <span><i class="fa-solid fa-pause" style="color: #f59e0b;"></i> 盤整籃 (等待一過二買點)</span>
+                        <button style="background:none; border:none; color:var(--text-muted); cursor:pointer;" onclick="addToBasket('盤整籃')">+ 加入當前</button>
+                    </div>
+                    <div id="consolidationBasket" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
                 </div>
-            </div>
-
-            <!-- Chart & Technical Analysis Panel -->
-            <div class="bg-cardBg rounded-xl p-4 border border-borderClr shadow-sm flex flex-col gap-4">
-                <div class="flex flex-wrap justify-between items-center gap-2 pb-2 border-b border-borderClr">
-                    <div class="flex items-center gap-3">
-                        <h2 class="text-base font-bold text-white font-mono" id="chart-stock-title">
-                            中鋼構 (2013) - 戰例 K 線圖分析
-                        </h2>
-                        <span id="chart-stock-pattern-tag" class="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">型態: 1. 橫盤整理</span>
-                    </div>
-
-                    <div class="flex items-center gap-2 text-xs">
-                        <span class="flex items-center gap-1 text-slate-300">
-                            <span class="w-2.5 h-2.5 rounded-full bg-accentPink inline-block"></span> 34MA生命線
-                        </span>
-                        <span class="flex items-center gap-1 text-slate-300">
-                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span> 一過二進場
-                        </span>
-                    </div>
-                </div>
-
-                <!-- Interactive Chart Canvas -->
-                <div class="relative w-full h-[320px] bg-darkBg rounded-lg p-2 border border-borderClr">
-                    <canvas id="tradingChart"></canvas>
-                </div>
-
-                <!-- Adam Theory (翻亞當) Target Calculator & Signal Analysis -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                    <!-- Signal & Volume Structure Analysis -->
-                    <div class="bg-panelBg rounded-lg p-3 border border-borderClr text-xs space-y-2">
-                        <div class="font-semibold text-slate-200 flex items-center gap-1.5 border-b border-borderClr/60 pb-1.5">
-                            <i class="fa-solid fa-magnifying-glass-chart text-accentYellow"></i> 順勢/逆勢量價結構分析
-                        </div>
-                        <div class="grid grid-cols-2 gap-2 text-[11px]">
-                            <div>
-                                <span class="text-slate-400">量價配比:</span>
-                                <span id="analysis-volume-status" class="text-bullish font-semibold ml-1">攻擊放量 / 盤整極縮</span>
-                            </div>
-                            <div>
-                                <span class="text-slate-400">生命線 34MA:</span>
-                                <span id="analysis-ma-status" class="text-accentPink font-semibold ml-1">扣抵低價區 (強勁支撐)</span>
-                            </div>
-                            <div>
-                                <span class="text-slate-400">關鍵進場點:</span>
-                                <span id="analysis-buy-point" class="text-emerald-400 font-semibold ml-1">一過二起漲突破點</span>
-                            </div>
-                            <div>
-                                <span class="text-slate-400">停損/停利防守:</span>
-                                <span id="analysis-stop-loss" class="text-rose-400 font-semibold ml-1">一破二或跌破34MA</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Adam Theory Projection Tool -->
-                    <div class="bg-panelBg rounded-lg p-3 border border-borderClr text-xs space-y-2">
-                        <div class="font-semibold text-slate-200 flex items-center justify-between border-b border-borderClr/60 pb-1.5">
-                            <span class="flex items-center gap-1.5"><i class="fa-solid fa-wand-magic-sparkles text-accentPink"></i> 亞當理論 (翻亞當) 預估目標價</span>
-                            <span class="text-[10px] text-slate-400">對稱翻轉模式</span>
-                        </div>
-                        <div class="flex items-center justify-between gap-2">
-                            <div class="space-y-1 flex-1">
-                                <label class="text-[10px] text-slate-400">盤整低點 (A):</label>
-                                <input type="number" id="adam-low" value="45.0" oninput="calculateAdamTarget()" class="w-full bg-darkBg border border-borderClr rounded px-2 py-1 font-mono text-slate-200">
-                            </div>
-                            <div class="space-y-1 flex-1">
-                                <label class="text-[10px] text-slate-400">突破高點 (B):</label>
-                                <input type="number" id="adam-high" value="58.5" oninput="calculateAdamTarget()" class="w-full bg-darkBg border border-borderClr rounded px-2 py-1 font-mono text-slate-200">
-                            </div>
-                            <div class="space-y-1 flex-1 text-center bg-darkBg/60 p-1.5 rounded border border-accentPink/30">
-                                <label class="text-[10px] text-accentPink font-semibold">翻亞當目標價</label>
-                                <div id="adam-target-price" class="text-sm font-bold font-mono text-accentYellow">72.0 元</div>
-                            </div>
-                        </div>
-                        <p class="text-[10px] text-slate-400">算法公式：翻轉目標 = B + (B - A) 支撐空間翻倍對稱投射。</p>
-                    </div>
-                </div>
-
-            </div>
-
-        </section>
-
-    </main>
-
-    <!-- Stock Basket Management Modal -->
-    <div id="basket-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
-        <div class="bg-cardBg border border-borderClr rounded-xl max-w-3xl w-full max-h-[85vh] flex flex-col shadow-2xl">
-            <!-- Modal Header -->
-            <div class="px-5 py-4 border-b border-borderClr flex justify-between items-center">
-                <div class="flex items-center gap-2">
-                    <i class="fa-solid fa-boxes-stacked text-accentYellow text-lg"></i>
-                    <h3 class="text-base font-bold text-white">雙股票籃觀察管理 (Stock Baskets)</h3>
-                </div>
-                <button onclick="closeBasketModal()" class="text-slate-400 hover:text-white text-lg"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-
-            <!-- Modal Body -->
-            <div class="p-5 overflow-y-auto space-y-6 flex-1">
-                
-                <!-- 1. Running Basket (確定走波段 / 當沖標的) -->
-                <div class="bg-darkBg rounded-lg p-4 border border-bullish/30">
-                    <div class="flex justify-between items-center mb-3">
-                        <h4 class="text-sm font-semibold text-bullish flex items-center gap-2">
-                            <i class="fa-solid fa-bolt"></i> 行進籃 (確定走波段 / 強勢追蹤)
-                        </h4>
-                        <span id="running-basket-badge" class="text-xs font-mono text-slate-400">0 檔股票</span>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs font-mono text-slate-300">
-                            <thead class="bg-panelBg text-slate-400 border-b border-borderClr">
-                                <tr>
-                                    <th class="py-2 px-3">代號/名稱</th>
-                                    <th class="py-2 px-3">當前現價</th>
-                                    <th class="py-2 px-3">型態分類</th>
-                                    <th class="py-2 px-3">亞當預估目標</th>
-                                    <th class="py-2 px-3 text-right">操作</th>
-                                </tr>
-                            </thead>
-                            <tbody id="running-basket-list">
-                                <tr><td colspan="5" class="py-3 text-center text-slate-500 italic">目前行進籃無資料，可在選股清單中加入</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- 2. Consolidation Basket (預備佈局 / 等待一過二點) -->
-                <div class="bg-darkBg rounded-lg p-4 border border-accentYellow/30">
-                    <div class="flex justify-between items-center mb-3">
-                        <h4 class="text-sm font-semibold text-accentYellow flex items-center gap-2">
-                            <i class="fa-solid fa-hourglass-half"></i> 盤整籃 (等待一過二點 / 預備佈局)
-                        </h4>
-                        <span id="consolidation-basket-badge" class="text-xs font-mono text-slate-400">0 檔股票</span>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs font-mono text-slate-300">
-                            <thead class="bg-panelBg text-slate-400 border-b border-borderClr">
-                                <tr>
-                                    <th class="py-2 px-3">代號/名稱</th>
-                                    <th class="py-2 px-3">當前現價</th>
-                                    <th class="py-2 px-3">型態分類</th>
-                                    <th class="py-2 px-3">亞當預估目標</th>
-                                    <th class="py-2 px-3 text-right">操作</th>
-                                </tr>
-                            </thead>
-                            <tbody id="consolidation-basket-list">
-                                <tr><td colspan="5" class="py-3 text-center text-slate-500 italic">目前盤整籃無資料，可在選股清單中加入</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- Modal Footer -->
-            <div class="px-5 py-3 border-t border-borderClr bg-panelBg flex justify-end">
-                <button onclick="closeBasketModal()" class="px-4 py-1.5 rounded-lg bg-borderClr hover:bg-slate-700 text-xs text-white transition-all">關閉</button>
             </div>
         </div>
     </div>
 
     <script>
-        // --- 1. DEMO DATABASE (台股模擬示範資料) ---
-        const stockDatabase = [
-            { id: "2013", name: "中鋼構", price: 58.5, change: 4.8, volume: 18500, ma34Trend: "up", pattern: 1, strategy: ["bullish", "support"], adamLow: 45.0, adamHigh: 58.5, history: generateKlineData(58.5, 1) },
-            { id: "4721", name: "美琪瑪", price: 92.4, change: 6.2, volume: 22100, ma34Trend: "up", pattern: 1, strategy: ["bullish"], adamLow: 76.0, adamHigh: 92.4, history: generateKlineData(92.4, 1) },
-            { id: "6104", name: "創惟", price: 135.0, change: 3.1, volume: 15400, ma34Trend: "up", pattern: 2, strategy: ["bullish"], adamLow: 112.0, adamHigh: 135.0, history: generateKlineData(135.0, 2) },
-            { id: "2329", name: "華泰", price: 42.8, change: -0.5, volume: 12800, ma34Trend: "up", pattern: 2, strategy: ["bullish", "support"], adamLow: 36.5, adamHigh: 43.2, history: generateKlineData(42.8, 2) },
-            { id: "3527", name: "聚積", price: 88.0, change: 1.2, volume: 11200, ma34Trend: "up", pattern: 3, strategy: ["support"], adamLow: 78.0, adamHigh: 88.0, history: generateKlineData(88.0, 3) },
-            { id: "2221", name: "大甲", price: 34.5, change: 0.8, volume: 8500, ma34Trend: "up", pattern: 3, strategy: ["support"], adamLow: 30.0, adamHigh: 35.0, history: generateKlineData(34.5, 3) },
-            { id: "2330", name: "台積電", price: 980.0, change: 1.5, volume: 28000, ma34Trend: "up", pattern: 2, strategy: ["bullish"], adamLow: 880.0, adamHigh: 980.0, history: generateKlineData(980.0, 2) },
-            { id: "2317", name: "鴻海", price: 182.5, change: -1.1, volume: 31000, ma34Trend: "down", pattern: 4, strategy: ["bearish"], adamLow: 175.0, adamHigh: 190.0, history: generateKlineData(182.5, 4) },
-            { id: "2454", name: "聯發科", price: 1180.0, change: -2.4, volume: 9200, ma34Trend: "down", pattern: 4, strategy: ["bearish"], adamLow: 1150.0, adamHigh: 1250.0, history: generateKlineData(1180.0, 4) }
+        // 預設 FinMind API Token (使用者已授權)
+        const FINMIND_TOKEN = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiYTA5MjA1NDkxNzVAZ21haWwuY29tIiwiZW1haWwiOiJhMDkyMDU0OTE3NUBnbWFpbC5jb20iLCJ0b2tlbl92ZXJzaW9uIjoxfQ.FhTR6d8coXIfBVM_nAG4AdlTWKqCPDl_ELUewRA3P_w";
+
+        // 預設經典範例資料庫
+        let stockDatabase = [
+            { id: '2013', name: '中鋼構', pattern: '橫盤整理', price: 62.5, change: '+3.5%' },
+            { id: '4721', name: '美琪瑪', pattern: '前高之上', price: 128.0, change: '+5.2%' },
+            { id: '6104', name: '創惟', pattern: '橫盤整理', price: 185.5, change: '+1.8%' },
+            { id: '2329', name: '華泰', pattern: '前低之上', price: 42.1, change: '-0.5%' }
         ];
 
-        // Global State
-        let currentStrategy = 'bullish';
         let currentStock = stockDatabase[0];
-        let runningBasket = [];
-        let consolidationBasket = [];
-        let chartInstance = null;
+        let currentFilter = 'all';
+        let mainChart = null;
 
-        // --- 2. HELPER FUNCTIONS ---
-        // Helper to generate simulated K-line historical data
-        function generateKlineData(currentPrice, pattern) {
-            const labels = [];
-            const prices = [];
-            const ma34 = [];
-            const volumes = [];
-            let basePrice = currentPrice * 0.82;
+        // 股票籃
+        let runningBasket = ['4721 美琪瑪'];
+        let consolidationBasket = ['2013 中鋼構', '6104 創惟'];
 
-            for (let i = 25; i >= 0; i--) {
-                labels.push(`W-${i}`);
-                if (i > 10) {
-                    basePrice += (Math.random() - 0.3) * (currentPrice * 0.02);
-                } else {
-                    // simulate pattern divergence
-                    if (pattern === 1) basePrice += (Math.random() - 0.48) * (currentPrice * 0.005); // Narrow horizontal
-                    else if (pattern === 2) basePrice += (Math.random() - 0.2) * (currentPrice * 0.015); // Strong upward
-                    else if (pattern === 3) basePrice += (Math.random() - 0.4) * (currentPrice * 0.015); // Moderate
-                    else basePrice -= Math.random() * (currentPrice * 0.02); // Weak
+        // 初始化
+        window.onload = function() {
+            renderStockList();
+            renderBaskets();
+            loadStockChartData(currentStock.id);
+        };
+
+        // 篩選器切換
+        function setPatternFilter(pattern) {
+            currentFilter = pattern;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.innerText.includes(pattern) || (pattern === 'all' && btn.innerText.includes('全部'))) {
+                    btn.classList.add('active');
                 }
-                
-                const finalP = Math.max(10, basePrice);
-                prices.push(finalP.toFixed(1));
-                ma34.push((finalP * (0.92 + (25 - i) * 0.003)).toFixed(1));
-                
-                // Volume
-                let vol = Math.floor(Math.random() * 8000) + 5000;
-                if (i === 0) vol = Math.floor(vol * 1.8); // Recent volume surge
-                volumes.push(vol);
-            }
-            return { labels, prices, ma34, volumes };
+            });
+            renderStockList();
         }
 
-        // --- STREAMING_CHUNK:Strategy and Filtering execution logic... ---
-        // --- 3. FILTERING & STRATEGY LOGIC ---
-        function switchStrategy(strat) {
-            currentStrategy = strat;
+        // 渲染股票清單
+        function renderStockList() {
+            const listEl = document.getElementById('stockList');
+            listEl.innerHTML = '';
             
-            // Update UI Strategy Buttons
-            document.querySelectorAll('.strategy-tab').forEach(btn => {
-                btn.className = "strategy-tab px-4 py-1.5 rounded-md transition-all flex items-center gap-2 text-slate-400 hover:text-white";
+            const filtered = stockDatabase.filter(item => currentFilter === 'all' || item.pattern === currentFilter);
+            
+            filtered.forEach(stock => {
+                const item = document.createElement('div');
+                item.className = `stock-item ${stock.id === currentStock.id ? 'active' : ''}`;
+                item.onclick = () => selectStock(stock);
+                item.innerHTML = `
+                    <div>
+                        <div style="font-weight: bold; color: #fff;">${stock.name} (${stock.id})</div>
+                        <div style="font-size: 0.8rem; color: var(--text-muted);">${stock.price} 元</div>
+                    </div>
+                    <div>
+                        <span class="tag tag-pattern">${stock.pattern}</span>
+                    </div>
+                `;
+                listEl.appendChild(item);
             });
-
-            const badge = document.getElementById('current-strategy-badge');
-            const desc = document.getElementById('strategy-desc');
-
-            if (strat === 'bullish') {
-                document.getElementById('tab-bullish').className = "strategy-tab px-4 py-1.5 rounded-md transition-all flex items-center gap-2 bg-bullish/20 text-bullish border border-bullish/40";
-                badge.innerText = "強勢股模式";
-                badge.className = "text-xs px-2 py-0.5 rounded-full bg-bullish/20 text-bullish font-mono";
-                desc.innerText = "預設技術條件：週均線多頭排列 (5>21>89)、34MA 向上且價格在 34MA 之上、量能擴增創 3 週新高，尋找高動能起漲股。";
-            } else if (strat === 'support') {
-                document.getElementById('tab-support').className = "strategy-tab px-4 py-1.5 rounded-md transition-all flex items-center gap-2 bg-accentYellow/20 text-accentYellow border border-accentYellow/40";
-                badge.innerText = "均線支撐模式";
-                badge.className = "text-xs px-2 py-0.5 rounded-full bg-accentYellow/20 text-accentYellow font-mono";
-                desc.innerText = "技術條件：價格拉回至 34MA / 55MA / 89MA 關鍵生命線不破，出現量縮止跌與反彈訊號。";
-            } else if (strat === 'bearish') {
-                document.getElementById('tab-bearish').className = "strategy-tab px-4 py-1.5 rounded-md transition-all flex items-center gap-2 bg-bearish/20 text-bearish border border-bearish/40";
-                badge.innerText = "弱勢股/空方模式";
-                badge.className = "text-xs px-2 py-0.5 rounded-full bg-bearish/20 text-bearish font-mono";
-                desc.innerText = "技術條件：均線空頭排列、34MA 往下彎頭、股價>50元且量增價跌，適合避開或做空觀察。";
-            }
-
-            runFilter();
         }
 
-        function updateParamUI() {
-            const minVol = document.getElementById('param-min-vol').value;
-            const minGain = document.getElementById('param-min-gain').value;
-            const minPrice = document.getElementById('param-min-price').value;
-
-            document.getElementById('val-min-vol').innerText = Number(minVol).toLocaleString();
-            document.getElementById('val-min-gain').innerText = `> ${minGain}%`;
-            document.getElementById('val-min-price').innerText = `${minPrice} 元`;
-
-            runFilter();
+        // 選取股票
+        function selectStock(stock) {
+            currentStock = stock;
+            renderStockList();
+            loadStockChartData(stock.id);
         }
 
-        function resetParameters() {
-            document.getElementById('param-min-vol').value = 10000;
-            document.getElementById('param-min-gain').value = 5;
-            document.getElementById('param-min-price').value = 20;
-            document.getElementById('param-ma-type').value = 'fibonacci';
-            updateParamUI();
-        }
-
-        function runFilter() {
-            const minVol = parseInt(document.getElementById('param-min-vol').value);
-            const minPrice = parseInt(document.getElementById('param-min-price').value);
-            const selectedPattern = parseInt(document.querySelector('input[name="pattern-filter"]:checked').value);
-
-            // Filter logic matching Strategy + Selected Pattern + Dynamic Parameters
-            const results = stockDatabase.filter(stock => {
-                const matchStrategy = stock.strategy.includes(currentStrategy);
-                const matchPattern = stock.pattern === selectedPattern;
-                const matchVol = stock.volume >= minVol;
-                const matchPrice = stock.price >= minPrice;
-
-                return matchStrategy && matchPattern && matchVol && matchPrice;
-            });
-
-            renderStockTable(results);
-        }
-
-        // --- STREAMING_CHUNK:Rendering Stock Table & Interaction... ---
-        function renderStockTable(list) {
-            const tbody = document.getElementById('stock-list-tbody');
-            document.getElementById('result-count').innerText = `共 ${list.length} 檔`;
-
-            if (list.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-slate-500 italic">無符合當前條件與型態組合之股票，請調整左側微調參數</td></tr>`;
+        // 從 FinMind API 抓取真實台股資料
+        async function fetchLiveStockData() {
+            const inputVal = document.getElementById('stockSearchInput').value.trim();
+            if (!inputVal) {
+                alert('請輸入台股代號！');
                 return;
             }
 
-            tbody.innerHTML = list.map(s => {
-                const isPositive = s.change >= 0;
-                const changeColor = isPositive ? 'text-bullish' : 'text-bearish';
-                const changeSign = isPositive ? '+' : '';
+            const stockId = inputVal.split(' ')[0];
+            const startDate = '2026-01-01'; // 最新年度數據
+            const url = `https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${stockId}&start_date=${startDate}&token=${FINMIND_TOKEN}`;
 
-                let patternBadge = '';
-                if(s.pattern === 1) patternBadge = `<span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300">1. 橫盤整理</span>`;
-                else if(s.pattern === 2) patternBadge = `<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">2. 在前高之上</span>`;
-                else if(s.pattern === 3) patternBadge = `<span class="px-2 py-0.5 rounded bg-slate-600/30 text-slate-300">3. 在前低之上</span>`;
-                else patternBadge = `<span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300">4. 破前低</span>`;
+            try {
+                const response = await fetch(url);
+                const result = await response.json();
 
-                return `
-                    <tr class="hover:bg-panelBg/80 cursor-pointer transition-colors" onclick="selectStock('${s.id}')">
-                        <td class="py-2.5 px-3 font-bold text-white flex items-center gap-1.5">
-                            ${s.name} <span class="text-slate-500 text-[10px]">(${s.id})</span>
-                        </td>
-                        <td class="py-2.5 px-3 font-semibold text-slate-200">${s.price.toFixed(1)}</td>
-                        <td class="py-2.5 px-3 font-semibold ${changeColor}">${changeSign}${s.change}%</td>
-                        <td class="py-2.5 px-3">${s.volume.toLocaleString()} 張</td>
-                        <td class="py-2.5 px-3">
-                            <span class="flex items-center gap-1 ${s.ma34Trend === 'up' ? 'text-accentPink' : 'text-slate-500'}">
-                                <i class="fa-solid fa-arrow-right-trend-up ${s.ma34Trend === 'up' ? '' : 'rotate-180'}"></i>
-                                ${s.ma34Trend === 'up' ? '34MA 向上' : '34MA 下彎'}
-                            </span>
-                        </td>
-                        <td class="py-2.5 px-3">${patternBadge}</td>
-                        <td class="py-2.5 px-3 text-center" onclick="event.stopPropagation()">
-                            <div class="inline-flex gap-1">
-                                <button onclick="addToBasket('${s.id}', 'running')" title="加入行進籃" class="px-2 py-1 rounded bg-bullish/20 hover:bg-bullish/40 text-bullish text-[11px] transition-all">
-                                    + 行進
-                                </button>
-                                <button onclick="addToBasket('${s.id}', 'consolidation')" title="加入盤整籃" class="px-2 py-1 rounded bg-accentYellow/20 hover:bg-accentYellow/40 text-accentYellow text-[11px] transition-all">
-                                    + 盤整
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
+                if (result.msg === 'success' && result.data.length > 0) {
+                    const rawData = result.data;
+                    const latest = rawData[rawData.length - 1];
+                    
+                    // 新增或更新資料庫
+                    const newStock = {
+                        id: stockId,
+                        name: `台股 ${stockId}`,
+                        pattern: '橫盤整理', // 預設分析型態
+                        price: latest.close,
+                        change: '0.0%'
+                    };
 
-            // Automatically select first stock in list for detail chart view
-            if (list.length > 0) {
-                selectStock(list[0].id);
+                    const existingIndex = stockDatabase.findIndex(s => s.id === stockId);
+                    if (existingIndex >= 0) {
+                        stockDatabase[existingIndex] = newStock;
+                    } else {
+                        stockDatabase.unshift(newStock);
+                    }
+
+                    currentStock = newStock;
+                    renderStockList();
+                    renderChartWithApiData(rawData, stockId);
+                } else {
+                    alert(`找不到代號 ${stockId} 的資料，請確認後重試。`);
+                }
+            } catch (error) {
+                console.error(error);
+                alert('線上抓取失敗，請檢查網路連線或 API Token。');
             }
         }
 
-        // --- STREAMING_CHUNK:Interactive Chart & Adam Theory Target Computation... ---
-        function selectStock(stockId) {
-            const stock = stockDatabase.find(s => s.id === stockId);
-            if (!stock) return;
-
-            currentStock = stock;
-
-            // Update Titles & Adam Inputs
-            document.getElementById('chart-stock-title').innerText = `${stock.name} (${stock.id}) - 戰例 K 線圖分析`;
-            document.getElementById('adam-low').value = stock.adamLow;
-            document.getElementById('adam-high').value = stock.adamHigh;
-
-            const patternTags = {
-                1: '型態: 1. 橫盤整理 (量縮價穩)',
-                2: '型態: 2. 在前波高點之上整理',
-                3: '型態: 3. 在前波低點之上整理',
-                4: '型態: 4. 破前波低點 (弱勢避開)'
-            };
-            document.getElementById('chart-stock-pattern-tag').innerText = patternTags[stock.pattern];
-
-            calculateAdamTarget();
-            renderTradingChart(stock);
+        // 計算 34MA 生命線
+        function calculateMA(data, period = 34) {
+            return data.map((item, index, arr) => {
+                if (index < period - 1) return null;
+                const slice = arr.slice(index - period + 1, index + 1);
+                const sum = slice.reduce((acc, curr) => acc + curr.close, 0);
+                return (sum / period).toFixed(2);
+            });
         }
 
-        function calculateAdamTarget() {
-            const low = parseFloat(document.getElementById('adam-low').value) || 0;
-            const high = parseFloat(document.getElementById('adam-high').value) || 0;
+        // 渲染 API 即時資料圖表
+        function renderChartWithApiData(apiData, stockId) {
+            document.getElementById('chartTitle').innerHTML = `<i class="fa-solid fa-chart-candlestick"></i> ${stockId} 即時 K 線與 34MA 生命線`;
 
-            if (high > low) {
-                const target = high + (high - low);
-                document.getElementById('adam-target-price').innerText = `${target.toFixed(1)} 元`;
-            } else {
-                document.getElementById('adam-target-price').innerText = `-- 元`;
-            }
+            const labels = apiData.map(d => d.date);
+            const closePrices = apiData.map(d => d.close);
+            const ma34 = calculateMA(apiData, 34);
+
+            drawChart(labels, closePrices, ma34);
+            
+            // 自動更新亞當計算器初始值
+            const lastPrice = closePrices[closePrices.length - 1];
+            document.getElementById('adamA').value = lastPrice;
+            document.getElementById('adamB').value = (lastPrice * 1.15).toFixed(1);
+            calculateAdam();
         }
 
-        function renderTradingChart(stock) {
-            const ctx = document.getElementById('tradingChart').getContext('2d');
+        // 繪製 Chart.js 視覺化圖表
+        function drawChart(labels, closePrices, ma34) {
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            
+            if (mainChart) mainChart.destroy();
 
-            if (chartInstance) {
-                chartInstance.destroy();
-            }
-
-            chartInstance = new Chart(ctx, {
+            mainChart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: stock.history.labels,
+                    labels: labels,
                     datasets: [
                         {
-                            label: '週收盤價',
-                            data: stock.history.prices,
-                            borderColor: '#22c55e',
-                            backgroundColor: 'rgba(34, 197, 94, 0.08)',
+                            label: '收盤價',
+                            data: closePrices,
+                            borderColor: '#26a69a',
                             borderWidth: 2,
-                            fill: true,
-                            tension: 0.25
+                            tension: 0.1,
+                            pointRadius: 2
                         },
                         {
                             label: '34MA 生命線',
-                            data: stock.history.ma34,
-                            borderColor: '#ec4899', // Pink MA
+                            data: ma34,
+                            borderColor: '#ff2e93',
                             borderWidth: 2,
                             borderDash: [4, 4],
-                            fill: false,
-                            tension: 0.3
+                            pointRadius: 0
                         }
                     ]
                 },
@@ -677,123 +572,50 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: {
-                            labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 } }
-                        },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                            backgroundColor: '#1c212d',
-                            titleColor: '#f8fafc',
-                            bodyColor: '#cbd5e1',
-                            borderColor: '#2a3142',
-                            borderWidth: 1
-                        }
+                        legend: { labels: { color: '#e2e8f0' } }
                     },
                     scales: {
-                        x: {
-                            grid: { color: '#1e293b' },
-                            ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 10 } }
-                        },
-                        y: {
-                            grid: { color: '#1e293b' },
-                            ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 10 } }
-                        }
+                        x: { ticks: { color: '#94a3b8' }, grid: { color: '#2a3447' } },
+                        y: { ticks: { color: '#94a3b8' }, grid: { color: '#2a3447' } }
                     }
                 }
             });
         }
 
-        // --- STREAMING_CHUNK:Stock Basket Modal Management... ---
-        function addToBasket(stockId, basketType) {
-            const stock = stockDatabase.find(s => s.id === stockId);
-            if (!stock) return;
+        // 模擬數據載入 (對應預設清單)
+        function loadStockChartData(stockId) {
+            fetchLiveStockData(); // 預設使用即時抓取模式
+        }
 
-            if (basketType === 'running') {
-                if (!runningBasket.some(s => s.id === stockId)) {
-                    runningBasket.push(stock);
-                }
-            } else if (basketType === 'consolidation') {
-                if (!consolidationBasket.some(s => s.id === stockId)) {
-                    consolidationBasket.push(stock);
-                }
+        // 亞當理論目標價計算
+        function calculateAdam() {
+            const a = parseFloat(document.getElementById('adamA').value) || 0;
+            const b = parseFloat(document.getElementById('adamB').value) || 0;
+            const ratio = parseFloat(document.getElementById('adamRatio').value) || 1;
+
+            const target = b + (b - a) * ratio;
+            document.getElementById('adamTargetResult').innerText = `預估翻亞當對稱目標價：${target.toFixed(2)} 元`;
+        }
+
+        // 加入股票籃
+        function addToBasket(type) {
+            const itemStr = `${currentStock.id} ${currentStock.name}`;
+            if (type === '行進籃' && !runningBasket.includes(itemStr)) {
+                runningBasket.push(itemStr);
+            } else if (type === '盤整籃' && !consolidationBasket.includes(itemStr)) {
+                consolidationBasket.push(itemStr);
             }
-            updateBasketCounts();
+            renderBaskets();
         }
 
-        function removeFromBasket(stockId, basketType) {
-            if (basketType === 'running') {
-                runningBasket = runningBasket.filter(s => s.id !== stockId);
-            } else if (basketType === 'consolidation') {
-                consolidationBasket = consolidationBasket.filter(s => s.id !== stockId);
-            }
-            updateBasketCounts();
-            renderBasketLists();
+        // 渲染股票籃
+        function renderBaskets() {
+            const runEl = document.getElementById('runningBasket');
+            const conEl = document.getElementById('consolidationBasket');
+
+            runEl.innerHTML = runningBasket.map(s => `<span class="tag" style="background: rgba(38,166,154,0.2); color:#26a69a;">${s}</span>`).join('');
+            conEl.innerHTML = consolidationBasket.map(s => `<span class="tag" style="background: rgba(245,158,11,0.2); color:#f59e0b;">${s}</span>`).join('');
         }
-
-        function updateBasketCounts() {
-            document.getElementById('nav-run-count').innerText = `行進: ${runningBasket.length}`;
-            document.getElementById('nav-consolidation-count').innerText = `盤整: ${consolidationBasket.length}`;
-            document.getElementById('running-basket-badge').innerText = `${runningBasket.length} 檔股票`;
-            document.getElementById('consolidation-basket-badge').innerText = `${consolidationBasket.length} 檔股票`;
-        }
-
-        function openBasketModal() {
-            renderBasketLists();
-            document.getElementById('basket-modal').classList.remove('hidden');
-            document.getElementById('basket-modal').classList.add('flex');
-        }
-
-        function closeBasketModal() {
-            document.getElementById('basket-modal').classList.add('hidden');
-            document.getElementById('basket-modal').classList.remove('flex');
-        }
-
-        function renderBasketLists() {
-            // Render Running Basket
-            const runList = document.getElementById('running-basket-list');
-            if (runningBasket.length === 0) {
-                runList.innerHTML = `<tr><td colspan="5" class="py-3 text-center text-slate-500 italic">目前行進籃無資料，可在選股清單中加入</td></tr>`;
-            } else {
-                runList.innerHTML = runningBasket.map(s => `
-                    <tr class="border-b border-borderClr/40">
-                        <td class="py-2 px-3 font-bold text-white">${s.name} (${s.id})</td>
-                        <td class="py-2 px-3 text-emerald-400 font-semibold">${s.price.toFixed(1)} 元</td>
-                        <td class="py-2 px-3 text-slate-300">型態 ${s.pattern}</td>
-                        <td class="py-2 px-3 text-accentYellow font-bold">${(s.adamHigh + (s.adamHigh - s.adamLow)).toFixed(1)} 元</td>
-                        <td class="py-2 px-3 text-right">
-                            <button onclick="removeFromBasket('${s.id}', 'running')" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i> 移除</button>
-                        </td>
-                    </tr>
-                `).join('');
-            }
-
-            // Render Consolidation Basket
-            const conList = document.getElementById('consolidation-basket-list');
-            if (consolidationBasket.length === 0) {
-                conList.innerHTML = `<tr><td colspan="5" class="py-3 text-center text-slate-500 italic">目前盤整籃無資料，可在選股清單中加入</td></tr>`;
-            } else {
-                conList.innerHTML = consolidationBasket.map(s => `
-                    <tr class="border-b border-borderClr/40">
-                        <td class="py-2 px-3 font-bold text-white">${s.name} (${s.id})</td>
-                        <td class="py-2 px-3 text-emerald-400 font-semibold">${s.price.toFixed(1)} 元</td>
-                        <td class="py-2 px-3 text-slate-300">型態 ${s.pattern}</td>
-                        <td class="py-2 px-3 text-accentYellow font-bold">${(s.adamHigh + (s.adamHigh - s.adamLow)).toFixed(1)} 元</td>
-                        <td class="py-2 px-3 text-right">
-                            <button onclick="removeFromBasket('${s.id}', 'consolidation')" class="text-rose-400 hover:text-rose-300"><i class="fa-solid fa-trash"></i> 移除</button>
-                        </td>
-                    </tr>
-                `).join('');
-            }
-        }
-
-        // --- STREAMING_CHUNK:App Initialization on Window Load... ---
-        window.onload = function () {
-            runFilter();
-            // Pre-load default stocks into baskets for illustration
-            addToBasket('2013', 'running');
-            addToBasket('4721', 'consolidation');
-        };
     </script>
 </body>
 </html>
