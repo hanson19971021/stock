@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock From Zero - 全天候真實台股 API 監控儀表板</title>
+    <title>Stock From Zero - 全天候多空雙向 API 監控儀表板</title>
     <style>
         :root {
             --bg-color: #121214;
@@ -33,7 +33,7 @@
         h1 { margin: 0; color: var(--accent-gold); font-size: 1.8rem; }
         .control-panel {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 15px;
             background: var(--card-bg);
             padding: 20px;
@@ -86,14 +86,15 @@
             border-bottom: 1px solid var(--border-color);
         }
         th { background: #282830; color: #888; font-weight: 600; }
-        .up { color: var(--accent-red); font-weight: bold; }
+        .price-text { font-weight: bold; }
         .tag {
-            padding: 3px 8px;
+            padding: 4px 8px;
             border-radius: 4px;
-            font-size: 0.8rem;
-            background: #333;
+            font-size: 0.82rem;
+            font-weight: bold;
         }
-        .tag-strong { background: rgba(255, 82, 82, 0.2); color: var(--accent-red); }
+        .tag-long { background: rgba(255, 82, 82, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); }
+        .tag-short { background: rgba(76, 175, 80, 0.2); color: var(--accent-green); border: 1px solid var(--accent-green); }
         
         .focus-box {
             background: var(--card-bg);
@@ -118,7 +119,7 @@
 <body>
     <div class="container">
         <header>
-            <h1>Stock From Zero 全天候真實台股 API 監控儀表板</h1>
+            <h1>Stock From Zero 全天候多空雙向 API 監控儀表板</h1>
             <div>
                 <span id="status-text">系統狀態: API 已認證 (待命)</span>
             </div>
@@ -127,11 +128,12 @@
         <!-- 控制面板 -->
         <div class="control-panel">
             <div class="form-group">
-                <label>選擇策略模式</label>
+                <label>選擇多空策略方向</label>
                 <select id="strategy-mode">
-                    <option value="strong">電腦選強勢股 (多頭突破)</option>
-                    <option value="support">電腦選均線支撐股 (回檔買點)</option>
-                    <option value="weak">電腦選弱勢股 (空方避險)</option>
+                    <option value="long-strong">🔴 做多：強勢突破 (週多頭 + 34MA向上)</option>
+                    <option value="long-support">🔴 做多：回檔買點 (週多頭 + 34MA支撐)</option>
+                    <option value="short-weak">🟢 做空：弱勢破位 (週空頭 + 34MA向下)</option>
+                    <option value="short-resistance">🟢 做空：反彈賣點 (週空頭 + 34MA壓力)</option>
                 </select>
             </div>
             <div class="form-group">
@@ -144,31 +146,30 @@
             </div>
             <div class="form-group">
                 <label>FinMind API Token</label>
-                <!-- 預設寫入您的已授權 Token -->
                 <input type="text" id="api-token" value="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiYTA5MjA1NDkxNzVAZ21haWwuY29tIiwiZW1haWwiOiJhMDkyMDU0OTE3NUBnbWFpbC5jb20iLCJ0b2tlbl92ZXJzaW9uIjowfQ.REDwl6fHjB3_j6_Iq0cTE5p2w-GoCVU01mPY9Y0FhR8" readonly style="background:#1a1a20; color:#888;">
             </div>
-            <button class="btn-primary" id="scan-btn" onclick="runFilter()">開啟真實 API 掃描</button>
+            <button class="btn-primary" id="scan-btn" onclick="runFilter()">開啟真實 API 多空掃描</button>
         </div>
 
         <div id="alert-banner" class="alert-banner"></div>
 
         <div class="dashboard-grid">
             <div>
-                <h2>篩選結果列表 (<span id="count-num">0</span> 檔) <span id="loading-spinner" class="loader"></span></h2>
+                <h2>多空篩選結果列表 (<span id="count-num">0</span> 檔) <span id="loading-spinner" class="loader"></span></h2>
                 <table>
                     <thead>
                         <tr>
                             <th>股票名稱/代碼</th>
                             <th>當前股價</th>
-                            <th>週線多頭排列 (5>21>89)</th>
+                            <th>週線排列 (5/21/89)</th>
                             <th>34MA生命線</th>
-                            <th>5日累計成交量</th>
-                            <th>策略特徵</th>
+                            <th>5日成交量</th>
+                            <th>建議方向</th>
                             <th>操作</th>
                         </tr>
                     </thead>
                     <tbody id="stock-list">
-                        <tr><td colspan="7" style="text-align:center; color:#888;">請點擊上方「開啟真實 API 掃描」進行分析</td></tr>
+                        <tr><td colspan="7" style="text-align:center; color:#888;">請點擊上方「開啟真實 API 多空掃描」進行分析</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -187,8 +188,8 @@
     </div>
 
     <script>
-        // 預設常見觀察標的清單 (可自行增減)
-        const watchlist = ["2330", "2317", "2454", "2382", "3231", "2603", "2308", "2379", "3037"];
+        // 預設觀察觀察標的清單
+        const watchlist = ["2330", "2317", "2454", "2382", "3231", "2603", "2308", "2379", "3037", "2408", "2303"];
         let focusStocks = [];
 
         function calculateSMA(data, period) {
@@ -235,7 +236,6 @@
                 let json = await res.json();
                 if (json.data && json.data.length > 0) return json.data;
                 
-                // 備用跨域代理管道
                 const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(apiUrl)}`;
                 res = await fetch(proxyUrl);
                 json = await res.json();
@@ -257,7 +257,7 @@
 
             scanBtn.disabled = true;
             banner.style.display = "none";
-            spinner.innerText = "API 認證數據對接中...";
+            spinner.innerText = "多空數據計算中...";
             document.getElementById("status-text").innerText = "系統狀態: 數據載入中";
 
             const results = [];
@@ -277,34 +277,62 @@
                 const latestPrice = dailyData[dailyData.length - 1].close;
                 if (latestPrice < minPrice) continue;
 
-                // 計算5日累計成交量 (張數 = 股數 / 1000)
+                // 5日累計成交量 (張數)
                 const vol5d = dailyData.slice(-5).reduce((acc, curr) => acc + (curr.Trading_Volume / 1000), 0);
                 if (vol5d < minVol) continue;
 
-                // 算日線 34MA
+                // 日線 34MA 生命線與方向
                 const ma34Today = calculateSMA(dailyData, 34) || latestPrice;
                 const ma34Yesterday = calculateSMA(dailyData.slice(0, -1), 34) || ma34Today;
                 const isMA34Up = ma34Today >= ma34Yesterday;
 
-                // 轉週線
+                // 週線 MA 5, 21, 89 計算
                 const weeklyData = convertToWeekly(dailyData);
                 const wMA5 = calculateSMA(weeklyData, 5) || latestPrice;
                 const wMA21 = calculateSMA(weeklyData, 21) || latestPrice;
                 const wMA89 = calculateSMA(weeklyData, 89) || latestPrice;
-                const wMAAlign = (wMA5 >= wMA21) && (wMA21 >= wMA89);
+
+                // 判斷週線排列狀態
+                const isLongAlign = (wMA5 > wMA21) && (wMA21 > wMA89);   // 週多頭排列
+                const isShortAlign = (wMA5 < wMA21) && (wMA21 < wMA89);  // 週空頭排列
 
                 let pass = false;
-                if (mode === "strong") pass = wMAAlign && isMA34Up;
-                else if (mode === "support") pass = wMAAlign && Math.abs(latestPrice - ma34Today) / ma34Today < 0.05;
-                else if (mode === "weak") pass = !wMAAlign;
+                let directionText = "";
+                let isLongAction = true;
+
+                // 策略情境分流
+                if (mode === "long-strong") {
+                    // 做多強勢：週多頭 + 34MA向上 + 股價在34MA之上
+                    pass = isLongAlign && isMA34Up && (latestPrice >= ma34Today);
+                    directionText = "適合做多 (強勢突破)";
+                    isLongAction = true;
+                } else if (mode === "long-support") {
+                    // 做多回檔：週多頭 + 股價拉回至34MA支撐區 (相差5%以內)
+                    pass = isLongAlign && (Math.abs(latestPrice - ma34Today) / ma34Today <= 0.05);
+                    directionText = "適合做多 (支撐買點)";
+                    isLongAction = true;
+                } else if (mode === "short-weak") {
+                    // 做空弱勢：週空頭 + 34MA向下 + 股價在34MA之下
+                    pass = isShortAlign && !isMA34Up && (latestPrice <= ma34Today);
+                    directionText = "適合做空 (弱勢破位)";
+                    isLongAction = false;
+                } else if (mode === "short-resistance") {
+                    // 做空反彈：週空頭 + 股價反彈至34MA壓力區 (相差5%以內)
+                    pass = isShortAlign && (Math.abs(latestPrice - ma34Today) / ma34Today <= 0.05);
+                    directionText = "適合做空 (反彈賣點)";
+                    isLongAction = false;
+                }
 
                 if (pass) {
                     results.push({
                         symbol: stockId,
                         price: latestPrice,
-                        wMA_Align: wMAAlign,
+                        weeklyStatus: isLongAlign ? "多頭排列" : (isShortAlign ? "空頭排列" : "盤整"),
                         ma34: ma34Today.toFixed(2),
-                        vol5d: Math.round(vol5d)
+                        isMA34Up: isMA34Up,
+                        vol5d: Math.round(vol5d),
+                        directionText: directionText,
+                        isLongAction: isLongAction
                     });
                 }
 
@@ -313,7 +341,7 @@
 
             if (errorCount === watchlist.length) {
                 banner.style.display = "block";
-                banner.innerText = "❌ 數據讀取失敗，請確認網路狀態是否順暢。";
+                banner.innerText = "❌ 數據讀取失敗，請確認網路連線。";
             }
 
             renderList(results);
@@ -328,38 +356,40 @@
             tbody.innerHTML = "";
 
             if (stocks.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#888;">無符合條件標的</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#888;">目前選取的策略下無符合條件標的</td></tr>`;
                 return;
             }
 
             stocks.forEach(stock => {
                 const tr = document.createElement("tr");
+                const actionClass = stock.isLongAction ? "tag-long" : "tag-short";
+                
                 tr.innerHTML = `
                     <td><strong>${stock.symbol}</strong></td>
-                    <td class="up">${stock.price}</td>
-                    <td>${stock.wMA_Align ? '<span class="tag tag-strong">多頭排列</span>' : '<span class="tag">否</span>'}</td>
-                    <td>${stock.price >= stock.ma34 ? `均線上 (${stock.ma34})` : `均線下 (${stock.ma34})`}</td>
+                    <td class="price-text">${stock.price}</td>
+                    <td>${stock.weeklyStatus}</td>
+                    <td>${stock.isMA34Up ? '向上' : '向下'} (${stock.ma34})</td>
                     <td>${stock.vol5d.toLocaleString()} 張</td>
-                    <td><span class="tag tag-strong">符合條件</span></td>
-                    <td><button onclick="addToFocus('${stock.symbol}')">加入精選</button></td>
+                    <td><span class="tag ${actionClass}">${stock.directionText}</span></td>
+                    <td><button onclick="addToFocus('${stock.symbol}', '${stock.directionText}')">加入精選</button></td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        function addToFocus(symbol) {
+        function addToFocus(symbol, action) {
             if (focusStocks.length >= 3) {
                 alert("根據講義原則，集中火力監控最多只能選擇 3 檔！[cite: 1]");
                 return;
             }
-            if (!focusStocks.includes(symbol)) {
-                focusStocks.push(symbol);
+            if (!focusStocks.some(s => s.symbol === symbol)) {
+                focusStocks.push({ symbol, action });
                 renderFocusList();
             }
         }
 
         function removeFromFocus(symbol) {
-            focusStocks = focusStocks.filter(s => s !== symbol);
+            focusStocks = focusStocks.filter(s => s.symbol !== symbol);
             renderFocusList();
         }
 
@@ -370,16 +400,19 @@
                 return;
             }
             div.innerHTML = "";
-            focusStocks.forEach(s => {
-                const item = document.createElement("div");
-                item.className = "focus-item";
-                item.innerHTML = `
-                    <div style="display:flex; justify-size:space-between; align-items:center;">
-                        <strong>${s}</strong>
-                        <button style="background:var(--accent-red); border:none; border-radius:3px; cursor:pointer;" onclick="removeFromFocus('${s}')">移除</button>
+            focusStocks.forEach(item => {
+                const element = document.createElement("div");
+                element.className = "focus-item";
+                element.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <strong>${item.symbol}</strong>
+                            <div style="font-size:0.8rem; color:#aaa;">${item.action}</div>
+                        </div>
+                        <button style="background:var(--accent-red); border:none; border-radius:3px; cursor:pointer;" onclick="removeFromFocus('${item.symbol}')">移除</button>
                     </div>
                 `;
-                div.appendChild(item);
+                div.appendChild(element);
             });
         }
     </script>
