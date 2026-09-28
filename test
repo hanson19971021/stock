@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock From Zero - 全天候真實台股 API 監控儀表板</title>
+    <style>
+        :root {
+            --bg-color: #121214;
+            --card-bg: #1e1e24;
+            --text-color: #e0e0e0;
+            --accent-red: #ff5252;
+            --accent-green: #4caf50;
+            --accent-gold: #ffd700;
+            --border-color: #33333d;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        h1 { margin: 0; color: var(--accent-gold); font-size: 1.8rem; }
+        .control-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .form-group { display: flex; flex-direction: column; }
+        label { margin-bottom: 5px; font-size: 0.9rem; color: #aaa; }
+        input, select, button {
+            padding: 10px;
+            background: #2a2a32;
+            border: 1px solid var(--border-color);
+            color: #fff;
+            border-radius: 4px;
+        }
+        button.btn-primary {
+            background: #2962ff;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button.btn-primary:hover { background: #1e88e5; }
+        button:disabled { background: #555; cursor: not-allowed; }
+        
+        .alert-banner {
+            padding: 12px;
+            background: rgba(255, 82, 82, 0.15);
+            border: 1px solid var(--accent-red);
+            color: var(--accent-red);
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 3fr 1fr;
+            gap: 20px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--card-bg);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        th { background: #282830; color: #888; font-weight: 600; }
+        .up { color: var(--accent-red); font-weight: bold; }
+        .tag {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            background: #333;
+        }
+        .tag-strong { background: rgba(255, 82, 82, 0.2); color: var(--accent-red); }
+        
+        .focus-box {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--accent-gold);
+        }
+        .focus-box h3 { margin-top: 0; color: var(--accent-gold); }
+        .focus-item {
+            padding: 10px;
+            background: #282830;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+        .loader {
+            display: inline-block;
+            margin-left: 10px;
+            color: var(--accent-gold);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Stock From Zero 全天候真實台股 API 監控儀表板</h1>
+            <div>
+                <span id="status-text">系統狀態: API 已認證 (待命)</span>
+            </div>
+        </header>
+
+        <!-- 控制面板 -->
+        <div class="control-panel">
+            <div class="form-group">
+                <label>選擇策略模式</label>
+                <select id="strategy-mode">
+                    <option value="strong">電腦選強勢股 (多頭突破)</option>
+                    <option value="support">電腦選均線支撐股 (回檔買點)</option>
+                    <option value="weak">電腦選弱勢股 (空方避險)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>最低股價 (元)</label>
+                <input type="number" id="min-price" value="20">
+            </div>
+            <div class="form-group">
+                <label>近5日累計成交量 (張)</label>
+                <input type="number" id="min-volume" value="3000">
+            </div>
+            <div class="form-group">
+                <label>FinMind API Token</label>
+                <!-- 預設寫入您的已授權 Token -->
+                <input type="text" id="api-token" value="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiYTA5MjA1NDkxNzVAZ21haWwuY29tIiwiZW1haWwiOiJhMDkyMDU0OTE3NUBnbWFpbC5jb20iLCJ0b2tlbl92ZXJzaW9uIjowfQ.REDwl6fHjB3_j6_Iq0cTE5p2w-GoCVU01mPY9Y0FhR8" readonly style="background:#1a1a20; color:#888;">
+            </div>
+            <button class="btn-primary" id="scan-btn" onclick="runFilter()">開啟真實 API 掃描</button>
+        </div>
+
+        <div id="alert-banner" class="alert-banner"></div>
+
+        <div class="dashboard-grid">
+            <div>
+                <h2>篩選結果列表 (<span id="count-num">0</span> 檔) <span id="loading-spinner" class="loader"></span></h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>股票名稱/代碼</th>
+                            <th>當前股價</th>
+                            <th>週線多頭排列 (5>21>89)</th>
+                            <th>34MA生命線</th>
+                            <th>5日累計成交量</th>
+                            <th>策略特徵</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stock-list">
+                        <tr><td colspan="7" style="text-align:center; color:#888;">請點擊上方「開啟真實 API 掃描」進行分析</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 精選集中觀察區 -->
+            <div>
+                <div class="focus-box">
+                    <h3>集中火力精選區 (最多3檔)</h3>
+                    <p style="font-size: 0.85rem; color: #aaa;">講義鐵律：手頭持股不超過 3 檔，集中資金操作勝率最高標的[cite: 1]。</p>
+                    <div id="focus-list">
+                        <div style="color: #666; text-align: center; padding: 20px;">尚未加入精選標的</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 預設常見觀察標的清單 (可自行增減)
+        const watchlist = ["2330", "2317", "2454", "2382", "3231", "2603", "2308", "2379", "3037"];
+        let focusStocks = [];
+
+        function calculateSMA(data, period) {
+            if (data.length < period) return null;
+            const slice = data.slice(data.length - period);
+            const sum = slice.reduce((acc, curr) => acc + curr.close, 0);
+            return sum / period;
+        }
+
+        function convertToWeekly(dailyData) {
+            const weekly = [];
+            let currentWeek = null;
+
+            dailyData.forEach(d => {
+                const date = new Date(d.date);
+                const year = date.getFullYear();
+                const firstDayOfYear = new Date(year, 0, 1);
+                const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
+                const weekNum = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+                const weekKey = `${year}-W${weekNum}`;
+
+                if (!currentWeek || currentWeek.weekKey !== weekKey) {
+                    if (currentWeek) weekly.push(currentWeek);
+                    currentWeek = { weekKey: weekKey, close: d.close, volume: d.Trading_Volume };
+                } else {
+                    currentWeek.close = d.close;
+                    currentWeek.volume += d.Trading_Volume;
+                }
+            });
+            if (currentWeek) weekly.push(currentWeek);
+            return weekly;
+        }
+
+        async function fetchStockData(stockId, token) {
+            const endDate = new Date().toISOString().split('T')[0];
+            const startDateObj = new Date();
+            startDateObj.setDate(startDateObj.getDate() - 365);
+            const startDate = startDateObj.toISOString().split('T')[0];
+
+            let apiUrl = `https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${stockId}&start_date=${startDate}&end_date=${endDate}&token=${token}`;
+
+            try {
+                let res = await fetch(apiUrl);
+                let json = await res.json();
+                if (json.data && json.data.length > 0) return json.data;
+                
+                // 備用跨域代理管道
+                const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(apiUrl)}`;
+                res = await fetch(proxyUrl);
+                json = await res.json();
+                return json.data || [];
+            } catch (err) {
+                console.error(`抓取 ${stockId} 失敗:`, err);
+                return [];
+            }
+        }
+
+        async function runFilter() {
+            const scanBtn = document.getElementById("scan-btn");
+            const spinner = document.getElementById("loading-spinner");
+            const banner = document.getElementById("alert-banner");
+            const token = document.getElementById("api-token").value;
+            const mode = document.getElementById("strategy-mode").value;
+            const minPrice = parseFloat(document.getElementById("min-price").value);
+            const minVol = parseInt(document.getElementById("min-volume").value);
+
+            scanBtn.disabled = true;
+            banner.style.display = "none";
+            spinner.innerText = "API 認證數據對接中...";
+            document.getElementById("status-text").innerText = "系統狀態: 數據載入中";
+
+            const results = [];
+            let errorCount = 0;
+
+            for (let i = 0; i < watchlist.length; i++) {
+                const stockId = watchlist[i];
+                spinner.innerText = `讀取中 (${i + 1}/${watchlist.length}): ${stockId}`;
+                
+                const dailyData = await fetchStockData(stockId, token);
+                
+                if (!dailyData || dailyData.length < 30) {
+                    errorCount++;
+                    continue;
+                }
+
+                const latestPrice = dailyData[dailyData.length - 1].close;
+                if (latestPrice < minPrice) continue;
+
+                // 計算5日累計成交量 (張數 = 股數 / 1000)
+                const vol5d = dailyData.slice(-5).reduce((acc, curr) => acc + (curr.Trading_Volume / 1000), 0);
+                if (vol5d < minVol) continue;
+
+                // 算日線 34MA
+                const ma34Today = calculateSMA(dailyData, 34) || latestPrice;
+                const ma34Yesterday = calculateSMA(dailyData.slice(0, -1), 34) || ma34Today;
+                const isMA34Up = ma34Today >= ma34Yesterday;
+
+                // 轉週線
+                const weeklyData = convertToWeekly(dailyData);
+                const wMA5 = calculateSMA(weeklyData, 5) || latestPrice;
+                const wMA21 = calculateSMA(weeklyData, 21) || latestPrice;
+                const wMA89 = calculateSMA(weeklyData, 89) || latestPrice;
+                const wMAAlign = (wMA5 >= wMA21) && (wMA21 >= wMA89);
+
+                let pass = false;
+                if (mode === "strong") pass = wMAAlign && isMA34Up;
+                else if (mode === "support") pass = wMAAlign && Math.abs(latestPrice - ma34Today) / ma34Today < 0.05;
+                else if (mode === "weak") pass = !wMAAlign;
+
+                if (pass) {
+                    results.push({
+                        symbol: stockId,
+                        price: latestPrice,
+                        wMA_Align: wMAAlign,
+                        ma34: ma34Today.toFixed(2),
+                        vol5d: Math.round(vol5d)
+                    });
+                }
+
+                await new Promise(r => setTimeout(r, 150));
+            }
+
+            if (errorCount === watchlist.length) {
+                banner.style.display = "block";
+                banner.innerText = "❌ 數據讀取失敗，請確認網路狀態是否順暢。";
+            }
+
+            renderList(results);
+            scanBtn.disabled = false;
+            spinner.innerText = "";
+            document.getElementById("status-text").innerText = `更新時間: ${new Date().toLocaleTimeString()}`;
+        }
+
+        function renderList(stocks) {
+            const tbody = document.getElementById("stock-list");
+            document.getElementById("count-num").innerText = stocks.length;
+            tbody.innerHTML = "";
+
+            if (stocks.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#888;">無符合條件標的</td></tr>`;
+                return;
+            }
+
+            stocks.forEach(stock => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td><strong>${stock.symbol}</strong></td>
+                    <td class="up">${stock.price}</td>
+                    <td>${stock.wMA_Align ? '<span class="tag tag-strong">多頭排列</span>' : '<span class="tag">否</span>'}</td>
+                    <td>${stock.price >= stock.ma34 ? `均線上 (${stock.ma34})` : `均線下 (${stock.ma34})`}</td>
+                    <td>${stock.vol5d.toLocaleString()} 張</td>
+                    <td><span class="tag tag-strong">符合條件</span></td>
+                    <td><button onclick="addToFocus('${stock.symbol}')">加入精選</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function addToFocus(symbol) {
+            if (focusStocks.length >= 3) {
+                alert("根據講義原則，集中火力監控最多只能選擇 3 檔！[cite: 1]");
+                return;
+            }
+            if (!focusStocks.includes(symbol)) {
+                focusStocks.push(symbol);
+                renderFocusList();
+            }
+        }
+
+        function removeFromFocus(symbol) {
+            focusStocks = focusStocks.filter(s => s !== symbol);
+            renderFocusList();
+        }
+
+        function renderFocusList() {
+            const div = document.getElementById("focus-list");
+            if (focusStocks.length === 0) {
+                div.innerHTML = `<div style="color: #666; text-align: center; padding: 20px;">尚未加入精選標的</div>`;
+                return;
+            }
+            div.innerHTML = "";
+            focusStocks.forEach(s => {
+                const item = document.createElement("div");
+                item.className = "focus-item";
+                item.innerHTML = `
+                    <div style="display:flex; justify-size:space-between; align-items:center;">
+                        <strong>${s}</strong>
+                        <button style="background:var(--accent-red); border:none; border-radius:3px; cursor:pointer;" onclick="removeFromFocus('${s}')">移除</button>
+                    </div>
+                `;
+                div.appendChild(item);
+            });
+        }
+    </script>
+</body>
+</html>
