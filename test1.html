@@ -3,368 +3,578 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock From Zero - 多源最新市場資訊系統</title>
+    <title>台股實時選股與強勢型態監控系統</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        :root {
-            --bg-dark: #0f141c;
-            --card-bg: #1a212d;
-            --card-border: #2a3447;
-            --accent-pink: #ff2e93;
-            --accent-yellow: #f59e0b;
-            --up-green: #26a69a;
-            --down-red: #ef5350;
-            --text-main: #e2e8f0;
-            --text-muted: #94a3b8;
+        .active-tab {
+            border-bottom: 3px solid #3b82f6;
+            color: #3b82f6;
+            font-weight: 600;
         }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background-color: var(--bg-dark); color: var(--text-main); padding: 20px; font-size: 14px; }
-
-        .header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; border-bottom: 1px solid var(--card-border); margin-bottom: 20px; }
-        .logo { display: flex; align-items: center; gap: 12px; }
-        .logo h1 { font-size: 1.5rem; font-weight: 700; background: linear-gradient(45deg, #3b82f6, var(--accent-pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-
-        .time-monitor { display: flex; align-items: center; gap: 15px; background: var(--card-bg); border: 1px solid var(--card-border); padding: 8px 16px; border-radius: 8px; }
-        .auto-scan-banner { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; padding: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
-
-        .btn { background: #3b82f6; color: white; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
-        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
-        .btn-pink { background: var(--accent-pink); }
-
-        .grid-layout { display: grid; grid-template-columns: 340px 1fr 300px; gap: 20px; }
-        @media (max-width: 1200px) { .grid-layout { grid-template-columns: 1fr; } }
-
-        .panel { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; padding: 16px; }
-        .panel-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; color: #fff; }
-
-        .signal-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-        .signal-card { background: var(--bg-dark); border: 1px solid var(--card-border); border-radius: 6px; padding: 10px; }
-        .signal-card.buy { border-left: 4px solid var(--up-green); }
-        .signal-card.sell { border-left: 4px solid var(--down-red); }
-
-        .stock-list { display: flex; flex-direction: column; gap: 8px; max-height: 480px; overflow-y: auto; }
-        .stock-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--bg-dark); border: 1px solid var(--card-border); border-radius: 6px; cursor: pointer; transition: 0.2s; }
-        .stock-item:hover, .stock-item.active { border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
-
-        .chart-container { position: relative; height: 380px; width: 100%; margin-bottom: 15px; }
-        .data-notice { padding: 8px 12px; border-radius: 6px; font-size: 0.8rem; margin-top: 10px; display: flex; align-items: center; gap: 8px; }
-        .notice-online { background: rgba(38, 166, 154, 0.15); color: var(--up-green); border: 1px solid var(--up-green); }
-        .notice-backup { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid #3b82f6; }
     </style>
 </head>
-<body>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
 
-    <div class="header">
-        <div class="logo">
-            <i class="fa-solid fa-bolt fa-xl" style="color: var(--accent-pink);"></i>
-            <h1>Stock From Zero (多重最新市場行情串接)</h1>
-        </div>
-
-        <div class="time-monitor">
-            <div style="text-align: right;">
-                <div id="currentTimeStr" style="font-size: 1.1rem; font-weight: bold; color: #fff;">00:00:00</div>
-                <div id="currentDateStr" style="font-size: 0.75rem; color: var(--text-muted);">--</div>
-            </div>
-            <div id="marketStatusTag" style="padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; background: rgba(148, 163, 184, 0.2); color: var(--text-muted); border: 1px solid var(--text-muted);">
-                <i class="fa-solid fa-sync fa-spin"></i> 連線中
+    <!-- Header / Navbar -->
+    <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50 px-6 py-4 flex flex-wrap justify-between items-center shadow-lg">
+        <div class="flex items-center space-x-3">
+            <i data-lucide="trending-up" class="w-8 h-8 text-blue-500"></i>
+            <div>
+                <h1 class="text-xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+                    StockFromZero 實時選股系統
+                </h1>
+                <p class="text-xs text-slate-400">依據《StockFromZero選股策略》講義邏輯開發</p>
             </div>
         </div>
-    </div>
 
-    <div class="auto-scan-banner">
-        <div>
-            <div style="font-size: 1.1rem; font-weight: bold; color: #fff;">
-                <i class="fa-solid fa-tower-broadcast" style="color: var(--accent-pink);"></i> 最新市場資訊連線引擎
+        <div class="flex items-center space-x-4 mt-2 sm:mt-0">
+            <div class="flex items-center bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-300">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
+                台股盤中即時連線中 (模擬API)
             </div>
-            <div id="dataNoticeBox" class="data-notice notice-online" style="margin-top:6px;">
-                <i class="fa-solid fa-circle-check"></i> <span id="dataNoticeText">正在讀取最新市場資訊...</span>
-            </div>
+            <button onclick="refreshData()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center space-x-1 transition-all">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                <span>立即刷新</span>
+            </button>
         </div>
-        <button class="btn btn-pink" onclick="loadLatestMarketData()" id="scanBtn">
-            <i class="fa-solid fa-rotate"></i> 抓取最新行情
-        </button>
-    </div>
+    </header>
 
-    <div class="grid-layout">
-        <!-- 左側股票清單 -->
-        <div class="panel">
-            <div class="panel-title"><i class="fa-solid fa-list-check"></i> 焦點股票市場報價</div>
-            <div class="stock-list" id="stockList">
-                <div style="text-align: center; color: var(--text-muted); padding: 20px;">
-                    <i class="fa-solid fa-spinner fa-spin"></i> 載入最新行情中...
+    <!-- Main Container -->
+    <main class="flex-1 p-4 lg:p-6 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Sidebar: Strategy Preset & Custom Filters -->
+        <aside class="lg:col-span-4 bg-slate-800 rounded-xl border border-slate-700 p-5 flex flex-col space-y-6">
+            
+            <!-- Strategy Selector -->
+            <div>
+                <h2 class="text-base font-semibold text-slate-200 mb-3 flex items-center">
+                    <i data-lucide="sliders" class="w-4 h-4 mr-2 text-blue-400"></i>
+                    講義核心選股模組
+                </h2>
+                <div class="grid grid-cols-1 gap-2">
+                    <button onclick="applyPreset('bull')" id="btn-bull" class="preset-btn bg-blue-600/20 border border-blue-500 text-blue-300 p-3 rounded-lg text-left transition text-xs font-medium flex justify-between items-center">
+                        <div>
+                            <div class="font-bold text-sm">1. 電腦選強勢股策略 (多頭)</div>
+                            <div class="text-slate-400 text-[11px] mt-0.5">週線多排 + MA34向上 + 近5日量>1萬張</div>
+                        </div>
+                        <i data-lucide="check-circle-2" class="w-5 h-5 text-blue-400"></i>
+                    </button>
+                    <button onclick="applyPreset('support')" id="btn-support" class="preset-btn bg-slate-700/50 border border-slate-600 text-slate-300 p-3 rounded-lg text-left transition hover:bg-slate-700 text-xs font-medium flex justify-between items-center">
+                        <div>
+                            <div class="font-bold text-sm">2. 均線支撐股策略 (回檔)</div>
+                            <div class="text-slate-400 text-[11px] mt-0.5">價>MA55/89支撐 + 支撐位回溫止跌</div>
+                        </div>
+                    </button>
+                    <button onclick="applyPreset('bear')" id="btn-bear" class="preset-btn bg-slate-700/50 border border-slate-600 text-slate-300 p-3 rounded-lg text-left transition hover:bg-slate-700 text-xs font-medium flex justify-between items-center">
+                        <div>
+                            <div class="font-bold text-sm">3. 電腦選弱勢股策略 (空頭)</div>
+                            <div class="text-slate-400 text-[11px] mt-0.5">均線空排 + 價<MA34 + MA34向下</div>
+                        </div>
+                    </button>
                 </div>
             </div>
-        </div>
 
-        <!-- 中間圖表與點位 -->
-        <div class="panel">
-            <div class="panel-title" id="chartTitle">
-                <i class="fa-solid fa-chart-line"></i> 價格與技術圖表
-            </div>
+            <hr class="border-slate-700">
 
-            <div class="signal-cards">
-                <div class="signal-card buy">
-                    <div style="color: var(--up-green); font-weight: bold; font-size: 0.85rem;">
-                        <i class="fa-solid fa-circle-arrow-up"></i> 建議進場點
+            <!-- Filter Controls -->
+            <div class="space-y-4 flex-1">
+                <h3 class="text-sm font-semibold text-slate-300 flex items-center">
+                    <i data-lucide="filter" class="w-4 h-4 mr-2 text-indigo-400"></i>
+                    篩選條件微調 (講義講述需依盤勢調整)
+                </h3>
+
+                <!-- Price Condition -->
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">最低股價門檻 (預設 > 20元)</label>
+                    <div class="flex items-center space-x-2">
+                        <input type="range" id="filter-price" min="0" max="100" value="20" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500" oninput="updateFilterLabel('price', this.value)">
+                        <span id="label-price" class="text-xs font-mono font-bold text-blue-400 w-12 text-right">20元</span>
                     </div>
-                    <div id="buyPointText" style="font-size: 1.1rem; font-weight: bold; margin-top: 4px; color: #fff;">-- 元</div>
-                    <div id="stopLossText" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">防守停損：-- 元</div>
                 </div>
 
-                <div class="signal-card sell">
-                    <div style="color: var(--down-red); font-weight: bold; font-size: 0.85rem;">
-                        <i class="fa-solid fa-circle-arrow-down"></i> 建議出場點
+                <!-- Volume Condition -->
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">近5日合計成交量 (預設 > 10,000張)</label>
+                    <div class="flex items-center space-x-2">
+                        <input type="range" id="filter-vol" min="1000" max="50000" step="1000" value="10000" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500" oninput="updateFilterLabel('vol', this.value)">
+                        <span id="label-vol" class="text-xs font-mono font-bold text-blue-400 w-16 text-right">10000張</span>
                     </div>
-                    <div id="sellPointText" style="font-size: 1.1rem; font-weight: bold; margin-top: 4px; color: #fff;">-- 元</div>
-                    <div id="exitReasonText" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">出場觸發：跌破近20日低點或生命線</div>
+                </div>
+
+                <!-- Industry Sector -->
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">族群篩選 (優先選擇主流強勢族群)</label>
+                    <select id="filter-sector" onchange="filterStocks()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500">
+                        <option value="ALL">全部族群 (全市場)</option>
+                        <option value="半導體/IC設計">半導體 / IC設計</option>
+                        <option value="電子零組件">電子零組件</option>
+                        <option value="光電/面板">光電 / 面板</option>
+                        <option value="航運/散裝">航運 / 散裝</option>
+                        <option value="化工/化學">化工 / 化學</option>
+                    </select>
+                </div>
+
+                <!-- Pattern Form -->
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1">整理型態分類 (強弱辨識)</label>
+                    <select id="filter-pattern" onchange="filterStocks()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-blue-500">
+                        <option value="ALL">全部型態</option>
+                        <option value="1. 橫盤整理">1. 橫盤整理 (最強)</option>
+                        <option value="2. 在前高之上">2. 在前高之上整理 (次強)</option>
+                        <option value="3. 在前低之上">3. 在前低之上整理 (一般)</option>
+                        <option value="4. 跌破前低">4. 跌破前低整理 (避開)</option>
+                    </select>
                 </div>
             </div>
 
-            <div class="chart-container">
-                <canvas id="mainChart"></canvas>
+            <!-- Total Results Badge -->
+            <div class="bg-slate-900/60 p-3 rounded-lg border border-slate-700 flex justify-between items-center text-xs">
+                <span class="text-slate-400">符合條件標的數：</span>
+                <span id="stock-count" class="font-bold text-emerald-400 text-sm">0 檔</span>
             </div>
-        </div>
+        </aside>
 
-        <!-- 右側狀態說明 -->
-        <div class="panel">
-            <div class="panel-title"><i class="fa-solid fa-circle-info"></i> 資料來源說明</div>
-            <div style="color: var(--text-muted); line-height: 1.6; font-size: 0.85rem;">
-                <p>1. <strong>盤中時段</strong>：優先讀取證交所撮合 API。</p>
-                <p style="margin-top: 8px;">2. <strong>非開盤/維護時段</strong>：系統自動轉接證交所每日最新交易統計 OpenData API，讀取最新一個交易日之真實收盤數據與成交資訊。</p>
+        <!-- Right Content: Stock Table & Detail Inspection -->
+        <section class="lg:col-span-8 flex flex-col space-y-6">
+
+            <!-- Stock List Table Section -->
+            <div class="bg-slate-800 rounded-xl border border-slate-700 p-5 shadow-md flex-1">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-700 gap-2">
+                    <h2 class="text-base font-semibold text-slate-200 flex items-center">
+                        <i data-lucide="list-filter" class="w-4 h-4 mr-2 text-emerald-400"></i>
+                        即時篩選個股清單
+                    </h2>
+                    
+                    <!-- Search input -->
+                    <div class="relative">
+                        <input type="text" id="search-input" onkeyup="filterStocks()" placeholder="搜尋代號或名稱..." class="bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-lg pl-8 pr-3 py-1.5 focus:outline-none focus:border-blue-500 w-44">
+                        <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2"></i>
+                    </div>
+                </div>
+
+                <!-- Table Container -->
+                <div class="overflow-x-auto mt-4">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="text-slate-400 text-xs border-b border-slate-700/60 bg-slate-900/40">
+                                <th class="p-2.5">股票</th>
+                                <th class="p-2.5">成交價</th>
+                                <th class="p-2.5">漲跌幅</th>
+                                <th class="p-2.5">近5日成交量</th>
+                                <th class="p-2.5">族群類別</th>
+                                <th class="p-2.5">整理型態 (4型態)</th>
+                                <th class="p-2.5 text-center">加入股票籃</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stock-table-body" class="divide-y divide-slate-700/40 text-xs text-slate-200">
+                            <!-- JS Dynamically Injected -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
-        </div>
-    </div>
+
+            <!-- Stock Chart & Strategy Multi-Timeframe Inspection -->
+            <div id="detail-panel" class="bg-slate-800 rounded-xl border border-slate-700 p-5 shadow-md hidden">
+                <div class="flex flex-wrap justify-between items-center mb-4 pb-3 border-b border-slate-700">
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <h3 id="detail-title" class="text-lg font-bold text-blue-400">中鋼構 (2013)</h3>
+                            <span id="detail-sector" class="bg-slate-700 text-slate-300 text-[10px] px-2 py-0.5 rounded-full">鋼鐵</span>
+                            <span id="detail-pattern" class="bg-emerald-900/60 text-emerald-300 border border-emerald-600 text-[10px] px-2 py-0.5 rounded-full">1. 橫盤整理</span>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-1">生命線技術面指標：<span class="text-emerald-400 font-semibold">34MA向上走揚，具備實質助漲支撐</span></p>
+                    </div>
+
+                    <div class="flex items-center space-x-2 mt-2 sm:mt-0">
+                        <button onclick="addToBasket('run')" class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/50 px-3 py-1.5 rounded-lg text-xs font-medium transition">
+                            + 加入「波段行進」籃
+                        </button>
+                        <button onclick="addToBasket('rest')" class="bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/50 px-3 py-1.5 rounded-lg text-xs font-medium transition">
+                            + 加入「盤整休息」籃
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Multi-timeframe Chart Component -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div class="bg-slate-900/70 p-3 rounded-lg border border-slate-700">
+                        <div class="text-[11px] font-semibold text-slate-400 mb-2 flex items-center justify-between">
+                            <span>週K層級 (確認大趨勢多排)</span>
+                            <span class="text-emerald-400">5>21>89周均</span>
+                        </div>
+                        <div class="h-32">
+                            <canvas id="chart-week"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900/70 p-3 rounded-lg border border-slate-700">
+                        <div class="text-[11px] font-semibold text-slate-400 mb-2 flex items-center justify-between">
+                            <span>日K層級 (尋求波段轉折)</span>
+                            <span class="text-blue-400">高於34MA生命線</span>
+                        </div>
+                        <div class="h-32">
+                            <canvas id="chart-day"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900/70 p-3 rounded-lg border border-slate-700">
+                        <div class="text-[11px] font-semibold text-slate-400 mb-2 flex items-center justify-between">
+                            <span>盤中60分K/預估量 (進場Timing)</span>
+                            <span class="text-purple-400">早於大盤起漲</span>
+                        </div>
+                        <div class="h-32">
+                            <canvas id="chart-hour"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Strategy Key Points Checklist -->
+                <div class="bg-slate-900/40 rounded-lg p-3 border border-slate-700/60 text-xs grid grid-cols-1 md:grid-cols-3 gap-3 text-slate-300">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="check" class="w-4 h-4 text-emerald-400"></i>
+                        <span>進場點：一過二突破 / 碰34MA止跌</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="check" class="w-4 h-4 text-emerald-400"></i>
+                        <span>出場點：一破二跌破 / 跌破34MA</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="check" class="w-4 h-4 text-emerald-400"></i>
+                        <span>預估量：盤中預估量 > 5日均量</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dual Watchlist (Rest vs 行進) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Basket 1: 波段行進籃 (當沖/順勢波段) -->
+                <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="text-xs font-bold text-emerald-400 flex items-center">
+                            <i data-lucide="zap" class="w-4 h-4 mr-1"></i>
+                            【行進中股票籃】 (方向已明確，可當沖/順勢)
+                        </h4>
+                        <span id="run-count" class="text-[10px] bg-emerald-900/50 text-emerald-300 px-2 py-0.5 rounded-full">0 檔</span>
+                    </div>
+                    <ul id="run-basket-list" class="space-y-1.5 text-xs text-slate-300 min-h-[80px]">
+                        <li class="text-slate-500 text-[11px] text-center py-4">點擊「加入」安放波段行進中個股</li>
+                    </ul>
+                </div>
+
+                <!-- Basket 2: 盤整休息籃 (關注起漲第一根) -->
+                <div class="bg-slate-800 rounded-xl border border-slate-700 p-4">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="text-xs font-bold text-amber-400 flex items-center">
+                            <i data-lucide="clock" class="w-4 h-4 mr-1"></i>
+                            【盤整休息股票籃】 (天天觀察，準備切入第一根)
+                        </h4>
+                        <span id="rest-count" class="text-[10px] bg-amber-900/50 text-amber-300 px-2 py-0.5 rounded-full">0 檔</span>
+                    </div>
+                    <ul id="rest-basket-list" class="space-y-1.5 text-xs text-slate-300 min-h-[80px]">
+                        <li class="text-slate-500 text-[11px] text-center py-4">點擊「加入」安放橫盤回檔整理個股</li>
+                    </ul>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
 
     <script>
-        const targetStocks = [
-            { id: '2330', name: '台積電' },
-            { id: '2317', name: '鴻海' },
-            { id: '2454', name: '聯發科' },
-            { id: '2603', name: '長榮' },
-            { id: '3231', name: '緯創' }
+        // Mock Real-time Stock Database based on PDF logic & Taiwan market
+        const mockStocks = [
+            { id: "2013", name: "中鋼構", price: 60.60, change: 9.9, volume5d: 18900, sector: "鋼鐵/金屬", pattern: "1. 橫盤整理", ma34Up: true, weekBull: true, priceAboveMa34: true },
+            { id: "2221", name: "大甲", price: 30.00, change: 6.8, volume5d: 11200, sector: "電子零組件", pattern: "2. 在前高之上", ma34Up: true, weekBull: true, priceAboveMa34: true },
+            { id: "3527", name: "聚積", price: 249.00, change: 8.5, volume5d: 22800, sector: "半導體/IC設計", pattern: "1. 橫盤整理", ma34Up: true, weekBull: true, priceAboveMa34: true },
+            { id: "4721", name: "美琪瑪", price: 136.00, change: 9.8, volume5d: 31500, sector: "化工/化學", pattern: "1. 橫盤整理", ma34Up: true, weekBull: true, priceAboveMa34: true },
+            { id: "3141", name: "晶宏", price: 174.00, change: 4.2, volume5d: 18500, sector: "半導體/IC設計", pattern: "2. 在前高之上", ma34Up: true, weekBull: true, priceAboveMa34: true },
+            { id: "6104", name: "創惟", price: 155.00, change: 3.5, volume5d: 29000, sector: "半導體/IC設計", pattern: "1. 橫盤整理", ma34Up: true, weekBull: true, priceAboveMa34: true },
+            { id: "2603", name: "長榮", price: 144.00, change: 2.8, volume5d: 45000, sector: "航運/散裝", pattern: "3. 在前低之上", ma34Up: true, weekBull: false, priceAboveMa34: true },
+            { id: "2609", name: "陽明", price: 138.50, change: 1.5, volume5d: 38000, sector: "航運/散裝", pattern: "3. 在前低之上", ma34Up: false, weekBull: false, priceAboveMa34: true },
+            { id: "2440", name: "太空梭", price: 16.40, change: -2.1, volume5d: 4200, sector: "電子零組件", pattern: "4. 跌破前低", ma34Up: false, weekBull: false, priceAboveMa34: false },
+            { id: "3035", name: "智原", price: 118.00, change: 5.4, volume5d: 21000, sector: "半導體/IC設計", pattern: "2. 在前高之上", ma34Up: true, weekBull: true, priceAboveMa34: true },
+            { id: "3443", name: "創意", price: 499.50, change: 1.8, volume5d: 12500, sector: "半導體/IC設計", pattern: "1. 橫盤整理", ma34Up: true, weekBull: true, priceAboveMa34: true },
+            { id: "1727", name: "中華化", price: 30.40, change: -4.5, volume5d: 8500, sector: "化工/化學", pattern: "4. 跌破前低", ma34Up: false, weekBull: false, priceAboveMa34: false }
         ];
 
-        let realtimeStocks = [];
-        let currentStock = null;
-        let mainChart = null;
+        let currentPreset = 'bull';
+        let selectedStock = mockStocks[0];
+        let runBasket = [];
+        let restBasket = [];
 
-        window.onload = function() {
-            updateRealtimeClock();
-            setInterval(updateRealtimeClock, 1000);
-            loadLatestMarketData();
-        };
+        // Chart.js instances
+        let weekChartInstance = null;
+        let dayChartInstance = null;
+        let hourChartInstance = null;
 
-        function updateRealtimeClock() {
-            const now = new Date();
-            document.getElementById('currentTimeStr').innerText = now.toLocaleTimeString('zh-TW', { hour12: false });
-            document.getElementById('currentDateStr').innerText = now.toISOString().split('T')[0];
+        // Initialize Lucide Icons & App
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            applyPreset('bull');
+        });
 
-            const hour = now.getHours();
-            const min = now.getMinutes();
-            const totalMin = hour * 60 + min;
-            const tagEl = document.getElementById('marketStatusTag');
-
-            if (now.getDay() === 0 || now.getDay() === 6) {
-                tagEl.innerHTML = `<i class="fa-solid fa-calendar"></i> 休市 (顯示最新收盤資料)`;
-            } else if (totalMin >= 540 && totalMin <= 810) {
-                tagEl.innerHTML = `<i class="fa-solid fa-circle-dot" style="color:#26a69a;"></i> 盤中即時交易`;
-                tagEl.style.color = '#26a69a';
-            } else {
-                tagEl.innerHTML = `<i class="fa-solid fa-moon"></i> 盤後 (顯示最新收盤行情)`;
-                tagEl.style.color = '#f59e0b';
-            }
-        }
-
-        async function loadLatestMarketData() {
-            const btn = document.getElementById('scanBtn');
-            const noticeBox = document.getElementById('dataNoticeBox');
-            const noticeText = document.getElementById('dataNoticeText');
-
-            btn.disabled = true;
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> 載入最新市場資訊...`;
-
-            // 1. 嘗試 TWSE 即時 API
-            let success = await fetchTWSERealtime();
-
-            if (success) {
-                noticeBox.className = 'data-notice notice-online';
-                noticeText.innerHTML = `<i class="fa-solid fa-circle-check"></i> 已成功連線證交所即時行情 (${new Date().toLocaleTimeString()})`;
-            } else {
-                // 2. 證交所維護時，切換至 TWSE 官方每日收盤 OpenData API (抓取最新真實市場收盤價格)
-                console.warn("即時 API 進入維護期，切換至證交所 OpenData 每日最新市場收盤庫...");
-                success = await fetchTWSEOpenData();
-
-                if (success) {
-                    noticeBox.className = 'data-notice notice-backup';
-                    noticeText.innerHTML = `<i class="fa-solid fa-database"></i> 證交所維護中，已自動載入證交所最新一日真實市場收盤行情`;
-                } else {
-                    noticeBox.className = 'data-notice notice-backup';
-                    noticeText.innerHTML = `<i class="fa-solid fa-exclamation-triangle"></i> 網路連線延遲，已顯示集中市場最新記錄行情`;
-                }
-            }
-
-            renderStockList();
-            if (!currentStock && realtimeStocks.length > 0) {
-                selectStock(realtimeStocks[0]);
-            } else if (currentStock) {
-                const updated = realtimeStocks.find(s => s.id === currentStock.id);
-                if (updated) selectStock(updated);
-            }
-
-            btn.disabled = false;
-            btn.innerHTML = `<i class="fa-solid fa-rotate"></i> 抓取最新行情`;
-        }
-
-        // 管道 A：證交所即時撮合 API
-        async function fetchTWSERealtime() {
-            try {
-                const stocksQuery = targetStocks.map(s => `tse_${s.id}.tw`).join('|');
-                const url = `https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=${stocksQuery}&_=${Date.now()}`;
-                
-                // 使用 corsproxy 解決前端跨域問題
-                const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-                const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(3500) });
-                const rawData = await response.json();
-
-                if (rawData && rawData.msgArray && rawData.msgArray.length > 0) {
-                    realtimeStocks = rawData.msgArray.map(item => {
-                        const currentPrice = parseFloat(item.z !== '-' ? item.z : item.y);
-                        const yesterdayPrice = parseFloat(item.y);
-                        const diff = (currentPrice - yesterdayPrice).toFixed(2);
-
-                        return {
-                            id: item.c,
-                            name: item.n,
-                            price: currentPrice,
-                            diff: diff,
-                            volume: item.v || '0',
-                            buyPoint: (currentPrice * 1.015).toFixed(1),
-                            stopLoss: (currentPrice * 0.96).toFixed(1),
-                            sellPoint: (currentPrice * 0.955).toFixed(1)
-                        };
-                    });
-                    return true;
-                }
-            } catch (e) {
-                return false;
-            }
-            return false;
-        }
-
-        // 管道 B：證交所官方每日最新市場報價 API (Open Data，離線/維護期專用)
-        async function fetchTWSEOpenData() {
-            try {
-                const url = `https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL`;
-                const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-                
-                const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(5000) });
-                const data = await response.json();
-
-                if (Array.isArray(data) && data.length > 0) {
-                    const filtered = data.filter(item => targetStocks.some(t => t.id === item.Code));
-
-                    if (filtered.length > 0) {
-                        realtimeStocks = filtered.map(item => {
-                            const currentPrice = parseFloat(item.ClosingPrice) || 0;
-                            const diff = parseFloat(item.Change) || 0;
-
-                            return {
-                                id: item.Code,
-                                name: item.Name,
-                                price: currentPrice,
-                                diff: diff.toFixed(2),
-                                volume: Math.round(parseInt(item.TradeVolume || '0') / 1000).toString(),
-                                buyPoint: (currentPrice * 1.015).toFixed(1),
-                                stopLoss: (currentPrice * 0.96).toFixed(1),
-                                sellPoint: (currentPrice * 0.955).toFixed(1)
-                            };
-                        });
-                        return true;
-                    }
-                }
-            } catch (e) {
-                return false;
-            }
-            return false;
-        }
-
-        function renderStockList() {
-            const listEl = document.getElementById('stockList');
-            listEl.innerHTML = '';
-
-            realtimeStocks.forEach(stock => {
-                const item = document.createElement('div');
-                item.className = `stock-item ${currentStock && stock.id === currentStock.id ? 'active' : ''}`;
-                item.onclick = () => selectStock(stock);
-
-                const isUp = stock.diff >= 0;
-                const colorStyle = isUp ? 'color: var(--up-green);' : 'color: var(--down-red);';
-
-                item.innerHTML = `
-                    <div>
-                        <div style="font-weight: bold; color: #fff;">${stock.name} (${stock.id})</div>
-                        <div style="font-size: 0.8rem; color: var(--text-muted);">成交量: ${stock.volume} 張</div>
-                    </div>
-                    <div style="text-align: right;">
-                        <div style="font-weight: bold; ${colorStyle}">${stock.price} 元</div>
-                        <div style="font-size: 0.75rem; ${colorStyle}">${isUp ? '+' : ''}${stock.diff}</div>
-                    </div>
-                `;
-                listEl.appendChild(item);
+        // Filter Logic based on PDF conditions
+        function applyPreset(type) {
+            currentPreset = type;
+            
+            // Highlight buttons
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.classList.remove('bg-blue-600/20', 'border-blue-500', 'text-blue-300');
+                btn.classList.add('bg-slate-700/50', 'border-slate-600', 'text-slate-300');
             });
+
+            if (type === 'bull') {
+                document.getElementById('btn-bull').classList.add('bg-blue-600/20', 'border-blue-500', 'text-blue-300');
+                document.getElementById('filter-price').value = 20;
+                document.getElementById('filter-vol').value = 10000;
+            } else if (type === 'support') {
+                document.getElementById('btn-support').classList.add('bg-blue-600/20', 'border-blue-500', 'text-blue-300');
+                document.getElementById('filter-price').value = 20;
+                document.getElementById('filter-vol').value = 5000;
+            } else if (type === 'bear') {
+                document.getElementById('btn-bear').classList.add('bg-blue-600/20', 'border-blue-500', 'text-blue-300');
+                document.getElementById('filter-price').value = 50;
+                document.getElementById('filter-vol').value = 5000;
+            }
+
+            updateFilterLabel('price', document.getElementById('filter-price').value);
+            updateFilterLabel('vol', document.getElementById('filter-vol').value);
+            filterStocks();
+        }
+
+        function updateFilterLabel(type, val) {
+            if (type === 'price') {
+                document.getElementById('label-price').innerText = val + '元';
+            } else if (type === 'vol') {
+                document.getElementById('label-vol').innerText = val + '張';
+            }
+            filterStocks();
+        }
+
+        function filterStocks() {
+            const minPrice = parseFloat(document.getElementById('filter-price').value);
+            const minVol = parseInt(document.getElementById('filter-vol').value);
+            const sector = document.getElementById('filter-sector').value;
+            const pattern = document.getElementById('filter-pattern').value;
+            const search = document.getElementById('search-input').value.trim();
+
+            const filtered = mockStocks.filter(s => {
+                // Preset logic
+                if (currentPreset === 'bull') {
+                    if (!s.weekBull || !s.ma34Up || !s.priceAboveMa34) return false;
+                } else if (currentPreset === 'support') {
+                    if (!s.priceAboveMa34) return false;
+                } else if (currentPreset === 'bear') {
+                    if (s.priceAboveMa34 || s.ma34Up) return false;
+                }
+
+                // Slider & Select logic
+                if (s.price < minPrice) return false;
+                if (s.volume5d < minVol) return false;
+                if (sector !== 'ALL' && !s.sector.includes(sector)) return false;
+                if (pattern !== 'ALL' && s.pattern !== pattern) return false;
+                if (search && !s.id.includes(search) && !s.name.includes(search)) return false;
+
+                return true;
+            });
+
+            renderStockTable(filtered);
+        }
+
+        function renderStockTable(stocks) {
+            const tbody = document.getElementById('stock-table-body');
+            document.getElementById('stock-count').innerText = `${stocks.length} 檔`;
+            tbody.innerHTML = '';
+
+            if (stocks.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-slate-500">無符合當前條件之標的，請微調選股門檻</td></tr>`;
+                return;
+            }
+
+            stocks.forEach(s => {
+                const isPositive = s.change >= 0;
+                const changeClass = isPositive ? 'text-red-400' : 'text-emerald-400';
+                const changeSign = isPositive ? '+' : '';
+
+                let patternBadge = 'bg-slate-700 text-slate-300';
+                if (s.pattern.includes('1.')) patternBadge = 'bg-emerald-900/60 text-emerald-300 border border-emerald-600/50';
+                if (s.pattern.includes('2.')) patternBadge = 'bg-blue-900/60 text-blue-300 border border-blue-600/50';
+                if (s.pattern.includes('4.')) patternBadge = 'bg-rose-900/60 text-rose-300 border border-rose-600/50';
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-700/40 cursor-pointer transition border-b border-slate-700/30";
+                tr.onclick = () => selectStock(s);
+
+                tr.innerHTML = `
+                    <td class="p-2.5 font-bold">${s.name} <span class="text-slate-400 text-[11px] font-normal">(${s.id})</span></td>
+                    <td class="p-2.5 font-mono">${s.price.toFixed(2)}</td>
+                    <td class="p-2.5 font-mono ${changeClass}">${changeSign}${s.change}%</td>
+                    <td class="p-2.5 font-mono text-slate-300">${s.volume5d.toLocaleString()} 張</td>
+                    <td class="p-2.5 text-slate-400">${s.sector}</td>
+                    <td class="p-2.5"><span class="text-[10px] px-2 py-0.5 rounded ${patternBadge}">${s.pattern}</span></td>
+                    <td class="p-2.5 text-center">
+                        <button onclick="event.stopPropagation(); quickAdd('${s.id}')" class="bg-blue-600/30 hover:bg-blue-500/50 text-blue-300 border border-blue-500/40 px-2 py-0.5 rounded text-[10px]">
+                            + 加入籃
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Select first stock by default
+            if (stocks.length > 0) {
+                selectStock(stocks[0]);
+            }
         }
 
         function selectStock(stock) {
-            currentStock = stock;
-            renderStockList();
+            selectedStock = stock;
+            document.getElementById('detail-panel').classList.remove('hidden');
+            document.getElementById('detail-title').innerText = `${stock.name} (${stock.id})`;
+            document.getElementById('detail-sector').innerText = stock.sector;
+            document.getElementById('detail-pattern').innerText = stock.pattern;
 
-            document.getElementById('chartTitle').innerHTML = `<i class="fa-solid fa-chart-line"></i> ${stock.name} (${stock.id}) 最新市場行情走勢`;
-            document.getElementById('buyPointText').innerText = `${stock.buyPoint} 元`;
-            document.getElementById('stopLossText').innerText = `防守停損價：${stock.stopLoss} 元`;
-            document.getElementById('sellPointText').innerText = `${stock.sellPoint} 元`;
-
-            drawChart(stock);
+            renderCharts(stock);
         }
 
-        function drawChart(stock) {
-            const ctx = document.getElementById('mainChart').getContext('2d');
-            if (mainChart) mainChart.destroy();
+        function renderCharts(stock) {
+            // Destroy existing charts
+            if (weekChartInstance) weekChartInstance.destroy();
+            if (dayChartInstance) dayChartInstance.destroy();
+            if (hourChartInstance) hourChartInstance.destroy();
 
-            const labels = ['09:00', '10:00', '11:00', '12:00', '13:00', '最新價'];
-            const prices = [
-                (stock.price * 0.99).toFixed(1),
-                (stock.price * 0.995).toFixed(1),
-                (stock.price * 0.992).toFixed(1),
-                (stock.price * 1.005).toFixed(1),
-                (stock.price * 0.998).toFixed(1),
-                stock.price
-            ];
+            const isUp = stock.change >= 0;
+            const lineColor = isUp ? '#f87171' : '#34d399';
 
-            mainChart = new Chart(ctx, {
+            // Week Chart
+            const ctxWeek = document.getElementById('chart-week').getContext('2d');
+            weekChartInstance = new Chart(ctxWeek, {
                 type: 'line',
                 data: {
-                    labels: labels,
+                    labels: ['W1', 'W2', 'W3', 'W4', 'W5', 'W6'],
                     datasets: [{
-                        label: '最新價格走勢',
-                        data: prices,
-                        borderColor: '#ff2e93',
+                        data: [stock.price * 0.82, stock.price * 0.85, stock.price * 0.88, stock.price * 0.92, stock.price * 0.95, stock.price],
+                        borderColor: lineColor,
                         borderWidth: 2,
-                        tension: 0.2,
-                        fill: false
+                        tension: 0.3,
+                        pointRadius: 0
                     }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: { ticks: { color: '#94a3b8' }, grid: { color: '#2a3447' } },
-                        y: { ticks: { color: '#94a3b8' }, grid: { color: '#2a3447' } }
-                    }
-                }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
             });
+
+            // Day Chart with MA34
+            const ctxDay = document.getElementById('chart-day').getContext('2d');
+            dayChartInstance = new Chart(ctxDay, {
+                type: 'line',
+                data: {
+                    labels: ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7'],
+                    datasets: [
+                        { label: '股價', data: [stock.price * 0.9, stock.price * 0.92, stock.price * 0.91, stock.price * 0.95, stock.price * 0.94, stock.price * 0.98, stock.price], borderColor: lineColor, borderWidth: 2, tension: 0.2, pointRadius: 0 },
+                        { label: '34MA生命線', data: [stock.price * 0.85, stock.price * 0.86, stock.price * 0.87, stock.price * 0.88, stock.price * 0.89, stock.price * 0.90, stock.price * 0.91], borderColor: '#ec4899', borderWidth: 1.5, borderDash: [3, 3], pointRadius: 0 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
+            });
+
+            // Hour Chart
+            const ctxHour = document.getElementById('chart-hour').getContext('2d');
+            hourChartInstance = new Chart(ctxHour, {
+                type: 'line',
+                data: {
+                    labels: ['09:00', '10:00', '11:00', '12:00', '13:00', '13:30'],
+                    datasets: [{
+                        data: [stock.price * 0.98, stock.price * 0.985, stock.price * 0.99, stock.price * 1.01, stock.price * 1.005, stock.price],
+                        borderColor: '#a855f7',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        pointRadius: 0
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
+            });
+        }
+
+        function addToBasket(type) {
+            if (!selectedStock) return;
+            if (type === 'run') {
+                if (!runBasket.some(s => s.id === selectedStock.id)) {
+                    runBasket.push(selectedStock);
+                }
+            } else {
+                if (!restBasket.some(s => s.id === selectedStock.id)) {
+                    restBasket.push(selectedStock);
+                }
+            }
+            renderBaskets();
+        }
+
+        function quickAdd(id) {
+            const s = mockStocks.find(item => item.id === id);
+            if (!s) return;
+            if (s.pattern.includes('1.') || s.pattern.includes('2.')) {
+                if (!restBasket.some(item => item.id === id)) restBasket.push(s);
+            } else {
+                if (!runBasket.some(item => item.id === id)) runBasket.push(s);
+            }
+            renderBaskets();
+        }
+
+        function removeFromBasket(type, id) {
+            if (type === 'run') {
+                runBasket = runBasket.filter(s => s.id !== id);
+            } else {
+                restBasket = restBasket.filter(s => s.id !== id);
+            }
+            renderBaskets();
+        }
+
+        function renderBaskets() {
+            // Run Basket
+            const runList = document.getElementById('run-basket-list');
+            document.getElementById('run-count').innerText = `${runBasket.length} 檔`;
+            if (runBasket.length === 0) {
+                runList.innerHTML = `<li class="text-slate-500 text-[11px] text-center py-4">點擊「加入」安放波段行進中個股</li>`;
+            } else {
+                runList.innerHTML = runBasket.map(s => `
+                    <li class="flex justify-between items-center bg-slate-900/60 p-2 rounded border border-slate-700/50">
+                        <div>
+                            <span class="font-bold text-slate-200">${s.name} (${s.id})</span>
+                            <span class="text-slate-400 text-[10px] ml-2">$${s.price.toFixed(2)}</span>
+                        </div>
+                        <button onclick="removeFromBasket('run', '${s.id}')" class="text-rose-400 hover:text-rose-300 text-[11px]">移除</button>
+                    </li>
+                `).join('');
+            }
+
+            // Rest Basket
+            const restList = document.getElementById('rest-basket-list');
+            document.getElementById('rest-count').innerText = `${restBasket.length} 檔`;
+            if (restBasket.length === 0) {
+                restList.innerHTML = `<li class="text-slate-500 text-[11px] text-center py-4">點擊「加入」安放橫盤回檔整理個股</li>`;
+            } else {
+                restList.innerHTML = restBasket.map(s => `
+                    <li class="flex justify-between items-center bg-slate-900/60 p-2 rounded border border-slate-700/50">
+                        <div>
+                            <span class="font-bold text-amber-300">${s.name} (${s.id})</span>
+                            <span class="text-slate-400 text-[10px] ml-2">${s.pattern}</span>
+                        </div>
+                        <button onclick="removeFromBasket('rest', '${s.id}')" class="text-rose-400 hover:text-rose-300 text-[11px]">移除</button>
+                    </li>
+                `).join('');
+            }
+        }
+
+        function refreshData() {
+            mockStocks.forEach(s => {
+                const diff = (Math.random() - 0.48) * 1.5;
+                s.price = Math.max(10, s.price + diff);
+                s.change = parseFloat((s.change + (Math.random() - 0.5) * 0.4).toFixed(2));
+            });
+            filterStocks();
         }
     </script>
 </body>
