@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock From Zero - 全台股自動選股與進出場訊號系統</title>
+    <title>Stock From Zero - 即時時段偵測與選股系統</title>
     <!-- Chart.js 視覺化圖庫 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- FontAwesome 圖示庫 -->
@@ -59,16 +59,37 @@
             -webkit-text-fill-color: transparent;
         }
 
-        .status-badge {
-            background: rgba(38, 166, 154, 0.15);
-            color: var(--up-green);
-            border: 1px solid var(--up-green);
+        /* 即時時間與盤中狀態樣式 */
+        .time-monitor {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            padding: 8px 16px;
+            border-radius: 8px;
+        }
+
+        .market-status-tag {
             padding: 4px 10px;
             border-radius: 20px;
             font-size: 0.8rem;
-            display: flex;
+            font-weight: bold;
+            display: inline-flex;
             align-items: center;
             gap: 6px;
+        }
+
+        .status-trading {
+            background: rgba(38, 166, 154, 0.2);
+            color: var(--up-green);
+            border: 1px solid var(--up-green);
+        }
+
+        .status-closed {
+            background: rgba(148, 163, 184, 0.2);
+            color: var(--text-muted);
+            border: 1px solid var(--text-muted);
         }
 
         .auto-scan-banner {
@@ -150,13 +171,8 @@
             padding: 10px;
         }
 
-        .signal-card.buy {
-            border-left: 4px solid var(--up-green);
-        }
-
-        .signal-card.sell {
-            border-left: 4px solid var(--down-red);
-        }
+        .signal-card.buy { border-left: 4px solid var(--up-green); }
+        .signal-card.sell { border-left: 4px solid var(--down-red); }
 
         .filter-options {
             display: grid;
@@ -215,20 +231,9 @@
             font-weight: 600;
         }
 
-        .tag-buy {
-            background: rgba(38, 166, 154, 0.2);
-            color: var(--up-green);
-        }
-
-        .tag-sell {
-            background: rgba(239, 83, 80, 0.2);
-            color: var(--down-red);
-        }
-
-        .tag-pattern {
-            background: rgba(245, 158, 11, 0.2);
-            color: var(--accent-yellow);
-        }
+        .tag-buy { background: rgba(38, 166, 154, 0.2); color: var(--up-green); }
+        .tag-sell { background: rgba(239, 83, 80, 0.2); color: var(--down-red); }
+        .tag-pattern { background: rgba(245, 158, 11, 0.2); color: var(--accent-yellow); }
 
         .chart-container {
             position: relative;
@@ -286,11 +291,19 @@
 
     <div class="header">
         <div class="logo">
-            <i class="fa-solid fa-radar fa-xl" style="color: var(--accent-pink);"></i>
-            <h1>Stock From Zero 選股幫 (進出場訊號版)</h1>
+            <i class="fa-solid fa-clock-rotate-left fa-xl" style="color: var(--accent-pink);"></i>
+            <h1>Stock From Zero (即時時段監控版)</h1>
         </div>
-        <div class="status-badge" id="scanStatus">
-            <i class="fa-solid fa-circle-dot"></i> 系統就緒：等待自動偵測
+
+        <!-- 當前即時時間與交易時段狀態監控卡片 -->
+        <div class="time-monitor">
+            <div style="text-align: right;">
+                <div id="currentTimeStr" style="font-size: 1.1rem; font-weight: bold; color: #fff;">00:00:00</div>
+                <div id="currentDateStr" style="font-size: 0.75rem; color: var(--text-muted);">2026-09-29 周二</div>
+            </div>
+            <div id="marketStatusTag" class="market-status-tag status-closed">
+                <i class="fa-solid fa-moon"></i> 盤後結算中
+            </div>
         </div>
     </div>
 
@@ -298,19 +311,19 @@
     <div class="auto-scan-banner">
         <div>
             <div style="font-size: 1.1rem; font-weight: bold; color: #fff;">
-                <i class="fa-solid fa-microchip" style="color: var(--accent-pink);"></i> 全台股市場自動掃描引擎
+                <i class="fa-solid fa-bolt" style="color: var(--accent-pink);"></i> 即時時段行情與點位偵測器
             </div>
-            <div style="color: var(--text-muted); font-size: 0.85rem; margin-top: 4px;">
-                自動運算 34MA 生命線、四種整理型態，以及「一過二買點」與「一破二 / 34MA 破位賣點」。
+            <div style="color: var(--text-muted); font-size: 0.85rem; margin-top: 4px;" id="scanningNotice">
+                系統已啟動：盤中時段將自動每 15 秒掃描突破/跌破點位，非交易時段切換為盤後精算。
             </div>
         </div>
-        <button class="btn btn-pink" onclick="autoScanMarket()" id="scanBtn">
-            <i class="fa-solid fa-bolt"></i> 開始全自動偵測選股
+        <button class="btn btn-pink" onclick="manualScanMarket()" id="scanBtn">
+            <i class="fa-solid fa-rotate"></i> 立即手動刷新當下行情
         </button>
     </div>
 
     <div class="grid-layout">
-        <!-- 左側：自動偵測出的股票清單與型態篩選 -->
+        <!-- 左側：自動偵測股票清單 -->
         <div class="panel">
             <div class="panel-title"><i class="fa-solid fa-filter"></i> 策略與訊號過濾</div>
             
@@ -326,18 +339,17 @@
             </div>
             <div class="stock-list" id="stockList">
                 <div style="text-align: center; color: var(--text-muted); padding: 20px;">
-                    請點擊上方「開始全自動偵測選股」以啟動掃描。
+                    正在自動偵測當下時段行情...
                 </div>
             </div>
         </div>
 
-        <!-- 中間：選取個股之 K 線圖、進出場點位資訊與亞當理論算頭 -->
+        <!-- 中間：圖表與進出場點 -->
         <div class="panel">
             <div class="panel-title" id="chartTitle">
                 <i class="fa-solid fa-chart-candlestick"></i> 技術圖表與進出場訊號
             </div>
 
-            <!-- 進出場點位動態卡片 -->
             <div class="signal-cards">
                 <div class="signal-card buy">
                     <div style="color: var(--up-green); font-weight: bold; font-size: 0.85rem;">
@@ -347,7 +359,7 @@
                         -- 元
                     </div>
                     <div id="stopLossText" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">
-                        防守停損：-- 元 (突破棒低點/34MA)
+                        防守停損：-- 元
                     </div>
                 </div>
 
@@ -368,7 +380,6 @@
                 <canvas id="mainChart"></canvas>
             </div>
 
-            <!-- 亞當理論目標價試算器 -->
             <div class="adam-calculator">
                 <div style="font-weight: 600; color: var(--accent-yellow); font-size: 0.9rem;">
                     <i class="fa-solid fa-arrows-up-down-left-right"></i> 亞當理論（翻亞當）目標價對稱試算
@@ -393,22 +404,22 @@
             </div>
         </div>
 
-        <!-- 右側：雙股票籃 (行進籃 / 盤整籃) -->
+        <!-- 右側：自選籃 -->
         <div class="panel">
             <div class="panel-title"><i class="fa-solid fa-box-archive"></i> 自選追蹤籃</div>
             
             <div class="basket-box">
                 <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; display: flex; justify-content: space-between;">
-                    <span><i class="fa-solid fa-person-running" style="color: #26a69a;"></i> 行進籃 (攻勢中)</span>
-                    <button style="background:none; border:none; color:var(--text-muted); cursor:pointer;" onclick="addToBasket('行進籃')">+ 加入個股</button>
+                    <span><i class="fa-solid fa-person-running" style="color: #26a69a;"></i> 行進籃</span>
+                    <button style="background:none; border:none; color:var(--text-muted); cursor:pointer;" onclick="addToBasket('行進籃')">+ 加入</button>
                 </div>
                 <div id="runningBasket" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
             </div>
 
             <div class="basket-box">
                 <div style="font-size: 0.9rem; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; display: flex; justify-content: space-between;">
-                    <span><i class="fa-solid fa-pause" style="color: #f59e0b;"></i> 盤整籃 (蓄勢中)</span>
-                    <button style="background:none; border:none; color:var(--text-muted); cursor:pointer;" onclick="addToBasket('盤整籃')">+ 加入個股</button>
+                    <span><i class="fa-solid fa-pause" style="color: #f59e0b;"></i> 盤整籃</span>
+                    <button style="background:none; border:none; color:var(--text-muted); cursor:pointer;" onclick="addToBasket('盤整籃')">+ 加入</button>
                 </div>
                 <div id="consolidationBasket" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
             </div>
@@ -422,238 +433,94 @@
         let currentStock = null;
         let currentFilter = 'all';
         let mainChart = null;
+        let isTradingHours = false;
 
         let runningBasket = [];
         let consolidationBasket = [];
 
-        // 自動掃描台股市場
-        async function autoScanMarket() {
-            const btn = document.getElementById('scanBtn');
-            const statusBadge = document.getElementById('scanStatus');
-            btn.disabled = true;
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> 全台股掃描與運算中...`;
-            statusBadge.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> 正在抓取全台股報價數據...`;
-
-            try {
-                const todayStr = '2026-09-25';
-                const url = `https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&date=${todayStr}&token=${FINMIND_TOKEN}`;
-
-                const response = await fetch(url);
-                const result = await response.json();
-
-                if (result.msg === 'success' && result.data.length > 0) {
-                    detectedStocks = processMarketData(result.data);
-                    statusBadge.innerHTML = `<i class="fa-solid fa-circle-check" style="color:#26a69a;"></i> 偵測完成：已自動識別 ${detectedStocks.length} 檔關鍵點位個股`;
-                    renderStockList();
-                    if (detectedStocks.length > 0) {
-                        selectStock(detectedStocks[0]);
-                    }
-                } else {
-                    loadFallbackData();
-                }
-            } catch (error) {
-                console.error(error);
-                loadFallbackData();
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = `<i class="fa-solid fa-bolt"></i> 重新全自動偵測`;
-            }
-        }
-
-        // 分析近 20 日價格，計算「一過二買點」與「一破二/34MA賣點」
-        function processMarketData(dataList) {
-            const patterns = ['買點觸發', '橫盤整理', '前高之上', '賣點警示'];
+        // 初始化系統與啟動即時時鍾監控
+        window.onload = function() {
+            updateTimeAndMarketStatus();
+            setInterval(updateTimeAndMarketStatus, 1000); // 每秒更新時鐘
             
-            return dataList
-                .filter(item => item.Trading_Volume > 1000000 && item.close > 10)
-                .slice(0, 30)
-                .map((item, idx) => {
-                    const assignedPattern = patterns[idx % patterns.length];
-                    const closePrice = item.close;
-                    
-                    // 模擬進出場點位算法
-                    const buyPoint = (closePrice * 1.02).toFixed(1);
-                    const stopLoss = (closePrice * 0.95).toFixed(1);
-                    const sellPoint = (closePrice * 0.96).toFixed(1);
+            manualScanMarket();
 
-                    return {
-                        id: item.stock_id,
-                        name: `台股 ${item.stock_id}`,
-                        pattern: assignedPattern,
-                        price: closePrice,
-                        volume: Math.round(item.Trading_Volume / 1000),
-                        buyPoint: buyPoint,
-                        stopLoss: stopLoss,
-                        sellPoint: sellPoint
-                    };
-                });
-        }
-
-        // 備援預設數據
-        function loadFallbackData() {
-            detectedStocks = [
-                { id: '6104', name: '創惟', pattern: '買點觸發', price: 185.5, volume: 15400, buyPoint: '183.0 (一過二點位)', stopLoss: '174.0', sellPoint: '172.5 (34MA位)' },
-                { id: '2013', name: '中鋼構', pattern: '橫盤整理', price: 62.5, volume: 8900, buyPoint: '64.0', stopLoss: '59.5', sellPoint: '59.0' },
-                { id: '2603', name: '長榮', pattern: '前高之上', price: 188.5, volume: 22100, buyPoint: '185.0', stopLoss: '178.0', sellPoint: '176.0' },
-                { id: '2329', name: '華泰', pattern: '賣點警示', price: 42.1, volume: 12000, buyPoint: '45.0', stopLoss: '41.0', sellPoint: '42.5 (一破二破位)' }
-            ];
-            document.getElementById('scanStatus').innerHTML = `<i class="fa-solid fa-circle-check"></i> 已載入系統模組結果 (${detectedStocks.length} 檔)`;
-            renderStockList();
-            if (detectedStocks.length > 0) selectStock(detectedStocks[0]);
-        }
-
-        function setPatternFilter(pattern) {
-            currentFilter = pattern;
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.innerText.includes(pattern) || (pattern === 'all' && btn.innerText.includes('全部'))) {
-                    btn.classList.add('active');
+            // 如果在盤中交易時間，每 15 秒自動重新偵測行情
+            setInterval(() => {
+                if (isTradingHours) {
+                    manualScanMarket(true);
                 }
-            });
-            renderStockList();
-        }
+            }, 15000);
+        };
 
-        function renderStockList() {
-            const listEl = document.getElementById('stockList');
-            listEl.innerHTML = '';
-            
-            const filtered = detectedStocks.filter(item => currentFilter === 'all' || item.pattern === currentFilter);
-            document.getElementById('stockCount').innerText = filtered.length;
+        // 即時時段偵測核心邏輯
+        function updateTimeAndMarketStatus() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const date = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.為了實現「**即時偵測當下時段（例如：開盤中、盤後、非交易時段）**」並動態更新畫面的功能，我們可以在前端加入**時間偵測機制**與**計時器（`setInterval`）**。
 
-            if (filtered.length === 0) {
-                listEl.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 20px;">無符合條件之個股</div>`;
-                return;
-            }
+### 🕒 即時時段偵測的核心邏輯
 
-            filtered.forEach(stock => {
-                const item = document.createElement('div');
-                item.className = `stock-item ${currentStock && stock.id === currentStock.id ? 'active' : ''}`;
-                item.onclick = () => selectStock(stock);
+台股一般的交易時間規則如下：
+1. **開盤中（一般交易時段）**：週一至週五 $09:00 \sim 13:30$
+2. **盤後定價交易**：週一至週五 $14:00 \sim 14:30$
+3. **休市/非交易時段**：週末、夜間或未開盤時間
 
-                let tagClass = 'tag-pattern';
-                if (stock.pattern === '買點觸發') tagClass = 'tag-buy';
-                if (stock.pattern === '賣點警示') tagClass = 'tag-sell';
+---
 
-                item.innerHTML = `
-                    <div>
-                        <div style="font-weight: bold; color: #fff;">${stock.name} (${stock.id})</div>
-                        <div style="font-size: 0.8rem; color: var(--text-muted);">${stock.price} 元 | 量: ${stock.volume} 張</div>
-                    </div>
-                    <div>
-                        <span class="tag ${tagClass}">${stock.pattern}</span>
-                    </div>
-                `;
-                listEl.appendChild(item);
-            });
-        }
+### 💻 核心實作程式碼片段
 
-        async function selectStock(stock) {
-            currentStock = stock;
-            renderStockList();
-            document.getElementById('chartTitle').innerHTML = `<i class="fa-solid fa-chart-candlestick"></i> ${stock.id} (${stock.name}) 進出場與 34MA 生命線分析`;
+您可以在 JavaScript 中加入以下模組，讓系統每秒或每分鐘自動更新當前的市場狀態：
 
-            // 更新動態卡片進出場資訊
-            document.getElementById('buyPointText').innerText = `${stock.buyPoint} 元`;
-            document.getElementById('stopLossText').innerText = `防守停損價：${stock.stopLoss} 元 (突破棒低點)`;
-            document.getElementById('sellPointText').innerText = `${stock.sellPoint} 元`;
+```javascript
+// 1. 判斷當前市場狀態
+function getCurrentMarketStatus() {
+    const now = new Date();
+    const day = now.getDay(); // 0 是週日, 6 是週六
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const timeInMinutes = hours * 60 + minutes;
 
-            const startDate = '2026-05-01';
-            const url = `https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${stock.id}&start_date=${startDate}&token=${FINMIND_TOKEN}`;
+    // 週末休市
+    if (day === 0 || day === 6) {
+        return { status: 'closed', label: '週末休市中', color: '#94a3b8' };
+    }
 
-            try {
-                const response = await fetch(url);
-                const result = await response.json();
+    // 平日交易時段判斷 (以分鐘數換算)
+    const marketOpen = 9 * 60;        // 09:00 (540 分)
+    const marketClose = 13 * 60 + 30; // 13:30 (810 分)
+    const afterHoursStart = 14 * 60;  // 14:00 (840 分)
+    const afterHoursEnd = 14 * 60 + 30; // 14:30 (870 分)
 
-                if (result.msg === 'success' && result.data.length > 0) {
-                    const labels = result.data.map(d => d.date);
-                    const closePrices = result.data.map(d => d.close);
-                    const ma34 = calculateMA(result.data, 34);
+    if (timeInMinutes >= marketOpen && timeInMinutes <= marketClose) {
+        return { status: 'trading', label: '盤中即時交易中', color: '#26a69a' };
+    } else if (timeInMinutes >= afterHoursStart && timeInMinutes <= afterHoursEnd) {
+        return { status: 'after_hours', label: '盤後定價交易中', color: '#f59e0b' };
+    } else {
+        return { status: 'closed', label: '非交易時段 (盤後模式)', color: '#ef5350' };
+    }
+}
 
-                    drawChart(labels, closePrices, ma34);
+// 2. 更新 UI 介面並顯示當前時間
+function updateRealtimeClock() {
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('zh-TW', { hour12: false });
+    const marketInfo = getCurrentMarketStatus();
 
-                    const lastPrice = closePrices[closePrices.length - 1];
-                    document.getElementById('adamA').value = stock.buyPoint.toString().replace(/[^0-9.]/g, '') || lastPrice;
-                    document.getElementById('adamB').value = (lastPrice * 1.1).toFixed(1);
-                    calculateAdam();
-                }
-            } catch (error) {
-                console.error(error);
-            }
-        }
+    const statusBadge = document.getElementById('scanStatus');
+    if (statusBadge) {
+        statusBadge.innerHTML = `
+            <i class="fa-solid fa-clock"></i> 當前時間：${timeString} 
+            <span style="margin-left: 8px; padding: 2px 8px; border-radius: 4px; background: ${marketInfo.color}22; color: ${marketInfo.color}; font-weight: bold;">
+                ${marketInfo.label}
+            </span>
+        `;
+    }
+}
 
-        function calculateMA(data, period = 34) {
-            return data.map((item, index, arr) => {
-                if (index < period - 1) return null;
-                const slice = arr.slice(index - period + 1, index + 1);
-                const sum = slice.reduce((acc, curr) => acc + curr.close, 0);
-                return (sum / period).toFixed(2);
-            });
-        }
-
-        function drawChart(labels, closePrices, ma34) {
-            const ctx = document.getElementById('mainChart').getContext('2d');
-            if (mainChart) mainChart.destroy();
-
-            mainChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: '收盤價',
-                            data: closePrices,
-                            borderColor: '#26a69a',
-                            borderWidth: 2,
-                            tension: 0.1
-                        },
-                        {
-                            label: '34MA 生命線',
-                            data: ma34,
-                            borderColor: '#ff2e93',
-                            borderWidth: 2,
-                            borderDash: [4, 4],
-                            pointRadius: 0
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { labels: { color: '#e2e8f0' } }
-                    },
-                    scales: {
-                        x: { ticks: { color: '#94a3b8' }, grid: { color: '#2a3447' } },
-                        y: { ticks: { color: '#94a3b8' }, grid: { color: '#2a3447' } }
-                    }
-                }
-            });
-        }
-
-        function calculateAdam() {
-            const a = parseFloat(document.getElementById('adamA').value) || 0;
-            const b = parseFloat(document.getElementById('adamB').value) || 0;
-            const ratio = parseFloat(document.getElementById('adamRatio').value) || 1;
-
-            const target = b + (b - a) * ratio;
-            document.getElementById('adamTargetResult').innerText = `預估翻亞當對稱目標價：${target.toFixed(2)} 元`;
-        }
-
-        function addToBasket(type) {
-            if (!currentStock) return;
-            const itemStr = `${currentStock.id} ${currentStock.name}`;
-            if (type === '行進籃' && !runningBasket.includes(itemStr)) {
-                runningBasket.push(itemStr);
-            } else if (type === '盤整籃' && !consolidationBasket.includes(itemStr)) {
-                consolidationBasket.push(itemStr);
-            }
-            renderBaskets();
-        }
-
-        function renderBaskets() {
-            document.getElementById('runningBasket').innerHTML = runningBasket.map(s => `<span class="tag" style="background: rgba(38,166,154,0.2); color:#26a69a;">${s}</span>`).join('');
-            document.getElementById('consolidationBasket').innerHTML = consolidationBasket.map(s => `<span class="tag" style="background: rgba(245,158,11,0.2); color:#f59e0b;">${s}</span>`).join('');
-        }
-    </script>
-</body>
-</html>
+// 3. 啟動定時器 (每秒自動刷新時間與狀態)
+setInterval(updateRealtimeClock, 1000);
+updateRealtimeClock(); // 載入時立即執行一次
