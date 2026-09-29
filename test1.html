@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock From Zero - TWSE 證交所精準實時股價系統</title>
+    <title>Stock From Zero - TWSE 實時與離線快取備援系統</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -49,12 +49,10 @@
         .stock-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--bg-dark); border: 1px solid var(--card-border); border-radius: 6px; cursor: pointer; transition: 0.2s; }
         .stock-item:hover, .stock-item.active { border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
 
-        .tag { padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
-        .tag-buy { background: rgba(38, 166, 154, 0.2); color: var(--up-green); }
-        .tag-sell { background: rgba(239, 83, 80, 0.2); color: var(--down-red); }
-        .tag-pattern { background: rgba(245, 158, 11, 0.2); color: var(--accent-yellow); }
-
         .chart-container { position: relative; height: 380px; width: 100%; margin-bottom: 15px; }
+        .data-notice { padding: 8px 12px; border-radius: 6px; font-size: 0.8rem; margin-top: 10px; display: flex; align-items: center; gap: 8px; }
+        .notice-online { background: rgba(38, 166, 154, 0.15); color: var(--up-green); border: 1px solid var(--up-green); }
+        .notice-offline { background: rgba(245, 158, 11, 0.15); color: var(--accent-yellow); border: 1px solid var(--accent-yellow); }
     </style>
 </head>
 <body>
@@ -62,7 +60,7 @@
     <div class="header">
         <div class="logo">
             <i class="fa-solid fa-bolt fa-xl" style="color: var(--accent-pink);"></i>
-            <h1>Stock From Zero (TWSE 實時對接版)</h1>
+            <h1>Stock From Zero (快取備援實時版)</h1>
         </div>
 
         <div class="time-monitor">
@@ -79,38 +77,38 @@
     <div class="auto-scan-banner">
         <div>
             <div style="font-size: 1.1rem; font-weight: bold; color: #fff;">
-                <i class="fa-solid fa-tower-broadcast" style="color: var(--accent-pink);"></i> 證交所 (TWSE) 官方即時 API 連線中
+                <i class="fa-solid fa-tower-broadcast" style="color: var(--accent-pink);"></i> 證交所 API (具備防護備援與快取)
             </div>
-            <div style="color: var(--text-muted); font-size: 0.85rem; margin-top: 4px;">
-                盤中時間每 5 秒自動獲取實時成交價，完全吻合當下真實市場價格。
+            <div id="dataNoticeBox" class="data-notice notice-online" style="margin-top:6px;">
+                <i class="fa-solid fa-circle-check"></i> <span id="dataNoticeText">正在嘗試連線證交所...</span>
             </div>
         </div>
         <button class="btn btn-pink" onclick="fetchRealtimeTWSEData()" id="scanBtn">
-            <i class="fa-solid fa-rotate"></i> 抓取最新實時報價
+            <i class="fa-solid fa-rotate"></i> 重新連線/刷新行情
         </button>
     </div>
 
     <div class="grid-layout">
-        <!-- 左側即時股票清單 -->
+        <!-- 左側股票清單 -->
         <div class="panel">
-            <div class="panel-title"><i class="fa-solid fa-list-check"></i> 實時焦點股票</div>
+            <div class="panel-title"><i class="fa-solid fa-list-check"></i> 焦點股票清單</div>
             <div class="stock-list" id="stockList">
                 <div style="text-align: center; color: var(--text-muted); padding: 20px;">
-                    <i class="fa-solid fa-spinner fa-spin"></i> 正在向證交所獲取實時數據...
+                    <i class="fa-solid fa-spinner fa-spin"></i> 載入中...
                 </div>
             </div>
         </div>
 
-        <!-- 中間圖表與進出場點 -->
+        <!-- 中間圖表與點位 -->
         <div class="panel">
             <div class="panel-title" id="chartTitle">
-                <i class="fa-solid fa-chart-line"></i> 實時價格與技術圖表
+                <i class="fa-solid fa-chart-line"></i> 價格與技術圖表
             </div>
 
             <div class="signal-cards">
                 <div class="signal-card buy">
                     <div style="color: var(--up-green); font-weight: bold; font-size: 0.85rem;">
-                        <i class="fa-solid fa-circle-arrow-up"></i> 建議進場點 (一過二買點)
+                        <i class="fa-solid fa-circle-arrow-up"></i> 建議進場點
                     </div>
                     <div id="buyPointText" style="font-size: 1.1rem; font-weight: bold; margin-top: 4px; color: #fff;">-- 元</div>
                     <div id="stopLossText" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">防守停損：-- 元</div>
@@ -118,10 +116,10 @@
 
                 <div class="signal-card sell">
                     <div style="color: var(--down-red); font-weight: bold; font-size: 0.85rem;">
-                        <i class="fa-solid fa-circle-arrow-down"></i> 建議出場點 (一破二/破位)
+                        <i class="fa-solid fa-circle-arrow-down"></i> 建議出場點
                     </div>
                     <div id="sellPointText" style="font-size: 1.1rem; font-weight: bold; margin-top: 4px; color: #fff;">-- 元</div>
-                    <div id="exitReasonText" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">出場觸發：跌破支撐位或生命線</div>
+                    <div id="exitReasonText" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">出場觸發：跌破近20日低點或生命線</div>
                 </div>
             </div>
 
@@ -130,18 +128,28 @@
             </div>
         </div>
 
-        <!-- 右側自選籃 -->
+        <!-- 右側狀態 -->
         <div class="panel">
-            <div class="panel-title"><i class="fa-solid fa-box-archive"></i> 自選追蹤籃</div>
-            <div class="basket-box" style="background: var(--bg-dark); border: 1px solid var(--card-border); padding: 10px; border-radius: 6px;">
-                <div style="color: var(--text-muted); font-size: 0.85rem;">即時監控清單已被激活。</div>
+            <div class="panel-title"><i class="fa-solid fa-database"></i> 數據狀態說明</div>
+            <div style="color: var(--text-muted); line-height: 1.6; font-size: 0.85rem;">
+                <p>1. <strong>開盤時間 (09:00 - 13:30)</strong>：即時連線台灣證券交易所取得最新秒級成交價。</p>
+                <p style="margin-top: 8px;">2. <strong>維護期 / 離線模式</strong>：若證交所進行批次維護或網路中斷，系統自動讀取本地上一次儲存的快取資料，確保系統正常可用。</p>
             </div>
         </div>
     </div>
 
     <script>
-        // 要即時偵測的焦點台股代號 (可自行新增)
         const targetStockIDs = ['tse_2330.tw', 'tse_2317.tw', 'tse_2454.tw', 'tse_2603.tw', 'tse_3231.tw'];
+        
+        // 預設預備備用數據 (防止第一次開啟且遇到維護期時完全無資料)
+        const fallbackDefaultData = [
+            { id: '2330', name: '台積電', price: 985.0, diff: 5.0, volume: '38200', buyPoint: '1000.0', stopLoss: '945.0', sellPoint: '940.0' },
+            { id: '2317', name: '鴻海', price: 180.5, diff: -1.0, volume: '25400', buyPoint: '183.5', stopLoss: '173.0', sellPoint: '172.0' },
+            { id: '2454', name: '聯發科', price: 1250.0, diff: 15.0, volume: '8900', buyPoint: '1270.0', stopLoss: '1200.0', sellPoint: '1190.0' },
+            { id: '2603', name: '長榮', price: 188.5, diff: 2.0, volume: '22100', buyPoint: '191.0', stopLoss: '180.0', sellPoint: '178.0' },
+            { id: '3231', name: '緯創', price: 102.5, diff: -0.5, volume: '18500', buyPoint: '105.0', stopLoss: '98.0', sellPoint: '97.5' }
+        ];
+
         let realtimeStocks = [];
         let currentStock = null;
         let mainChart = null;
@@ -150,9 +158,6 @@
             updateRealtimeClock();
             setInterval(updateRealtimeClock, 1000);
             fetchRealtimeTWSEData();
-
-            // 盤中每 10 秒自動刷新實時報價
-            setInterval(fetchRealtimeTWSEData, 10000);
         };
 
         function updateRealtimeClock() {
@@ -171,14 +176,16 @@
                 tagEl.innerHTML = `<i class="fa-solid fa-circle-dot" style="color:#26a69a;"></i> 盤中即時交易中`;
                 tagEl.style.color = '#26a69a';
             } else {
-                tagEl.innerHTML = `<i class="fa-solid fa-moon"></i> 盤後／非交易時間`;
+                tagEl.innerHTML = `<i class="fa-solid fa-moon"></i> 盤後/系統維護期`;
                 tagEl.style.color = '#f59e0b';
             }
         }
 
-        // 核心：直連證交所 MIS 即時 API (透過 CORS Proxy 轉發)
         async function fetchRealtimeTWSEData() {
             const btn = document.getElementById('scanBtn');
+            const noticeBox = document.getElementById('dataNoticeBox');
+            const noticeText = document.getElementById('dataNoticeText');
+
             btn.disabled = true;
             btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> 連線證交所中...`;
 
@@ -187,13 +194,18 @@
             const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(twseApiUrl)}`;
 
             try {
-                const response = await fetch(proxyUrl);
+                // 設定 5 秒連線超時防護
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+                const response = await fetch(proxyUrl, { signal: controller.signal });
+                clearTimeout(timeoutId);
+
                 const result = await response.json();
                 const rawData = JSON.parse(result.contents);
 
-                if (rawData && rawData.msgArray) {
+                if (rawData && rawData.msgArray && rawData.msgArray.length > 0) {
                     realtimeStocks = rawData.msgArray.map(item => {
-                        // z 為最新成交價，若尚未成交則拿 y (昨收價)
                         const currentPrice = parseFloat(item.z !== '-' ? item.z : item.y);
                         const yesterdayPrice = parseFloat(item.y);
                         const diff = (currentPrice - yesterdayPrice).toFixed(2);
@@ -204,27 +216,53 @@
                             price: currentPrice,
                             diff: diff,
                             volume: item.v || '0',
-                            high: item.h,
-                            low: item.l,
                             buyPoint: (currentPrice * 1.015).toFixed(1),
                             stopLoss: (currentPrice * 0.96).toFixed(1),
                             sellPoint: (currentPrice * 0.955).toFixed(1)
                         };
                     });
 
-                    renderStockList();
-                    if (!currentStock && realtimeStocks.length > 0) {
-                        selectStock(realtimeStocks[0]);
-                    } else if (currentStock) {
-                        const updated = realtimeStocks.find(s => s.id === currentStock.id);
-                        if (updated) selectStock(updated);
-                    }
+                    // 1. 成功時：儲存最新資料與時間戳記到 localStorage
+                    const cacheData = {
+                        timestamp: new Date().toLocaleString('zh-TW'),
+                        stocks: realtimeStocks
+                    };
+                    localStorage.setItem('twse_stock_cache', JSON.stringify(cacheData));
+
+                    // 顯示成功狀態
+                    noticeBox.className = 'data-notice notice-online';
+                    noticeText.innerHTML = `已連線證交所 (更新時間: ${new Date().toLocaleTimeString()})`;
+                } else {
+                    throw new Error("證交所回傳空資料或維護中");
                 }
             } catch (error) {
-                console.error("證交所 API 連線失敗，請檢查網路:", error);
+                console.warn("連線至證交所失敗，自動讀取現有快取資料:", error);
+
+                // 2. 失敗時：讀取 localStorage 中的現有資訊
+                const savedCache = localStorage.getItem('twse_stock_cache');
+                
+                if (savedCache) {
+                    const parsed = JSON.parse(savedCache);
+                    realtimeStocks = parsed.stocks;
+                    noticeBox.className = 'data-notice notice-offline';
+                    noticeText.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> 證交所維護/離線中，已載入最後成功紀錄 (${parsed.timestamp})`;
+                } else {
+                    // 若完全沒有快取，載入預設靜態備用資料
+                    realtimeStocks = fallbackDefaultData;
+                    noticeBox.className = 'data-notice notice-offline';
+                    noticeText.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> 目前為非交易時間/維護中，已載入預設預備選股資訊`;
+                }
             } finally {
+                renderStockList();
+                if (!currentStock && realtimeStocks.length > 0) {
+                    selectStock(realtimeStocks[0]);
+                } else if (currentStock) {
+                    const updated = realtimeStocks.find(s => s.id === currentStock.id);
+                    if (updated) selectStock(updated);
+                }
+
                 btn.disabled = false;
-                btn.innerHTML = `<i class="fa-solid fa-rotate"></i> 抓取最新實時報價`;
+                btn.innerHTML = `<i class="fa-solid fa-rotate"></i> 重新連線/刷新行情`;
             }
         }
 
@@ -258,7 +296,7 @@
             currentStock = stock;
             renderStockList();
 
-            document.getElementById('chartTitle').innerHTML = `<i class="fa-solid fa-chart-line"></i> ${stock.name} (${stock.id}) 實時行情分析`;
+            document.getElementById('chartTitle').innerHTML = `<i class="fa-solid fa-chart-line"></i> ${stock.name} (${stock.id}) 行情分析`;
             document.getElementById('buyPointText').innerText = `${stock.buyPoint} 元`;
             document.getElementById('stopLossText').innerText = `防守停損價：${stock.stopLoss} 元`;
             document.getElementById('sellPointText').innerText = `${stock.sellPoint} 元`;
@@ -270,13 +308,12 @@
             const ctx = document.getElementById('mainChart').getContext('2d');
             if (mainChart) mainChart.destroy();
 
-            // 生成實時擬合走勢
-            const labels = ['09:00', '10:00', '11:00', '12:00', '13:00', '當下時間'];
+            const labels = ['09:00', '10:00', '11:00', '12:00', '13:00', '收盤/當下'];
             const prices = [
                 (stock.price * 0.99).toFixed(1),
                 (stock.price * 0.995).toFixed(1),
-                stock.low !== '-' ? stock.low : stock.price,
-                stock.high !== '-' ? stock.high : stock.price,
+                (stock.price * 0.992).toFixed(1),
+                (stock.price * 1.005).toFixed(1),
                 (stock.price * 0.998).toFixed(1),
                 stock.price
             ];
@@ -286,7 +323,7 @@
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: '當下實時價格 (證交所)',
+                        label: '當前價格',
                         data: prices,
                         borderColor: '#ff2e93',
                         borderWidth: 2,
