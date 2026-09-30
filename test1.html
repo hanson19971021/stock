@@ -3,667 +3,326 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>從零開始學股票 - 台股選股與技術分析系統 (Yahoo Finance 連線版)</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>Stock From Zero 網頁選股與進出場系統</title>
     <style>
-        .up-color { color: #ef4444; } /* 漲：紅 */
-        .down-color { color: #22c55e; } /* 跌：綠 */
-        .bg-up { background-color: #ef4444; }
-        .bg-down { background-color: #22c55e; }
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-color: #e0e0e0;
+            --accent-red: #ff5252;
+            --accent-green: #4caf50;
+            --accent-yellow: #ffeb3b;
+            --primary-blue: #2196f3;
+            --border-color: #333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Microsoft JhengHei, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            margin: 0;
+            color: #fff;
+            font-size: 1.8rem;
+        }
+
+        .strategy-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 10px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .btn:hover, .btn.active {
+            background-color: var(--primary-blue);
+            color: #fff;
+            border-color: var(--primary-blue);
+        }
+
+        .btn-fetch {
+            background-color: #388e3c;
+            color: white;
+            border: none;
+        }
         
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
+        .btn-fetch:hover {
+            background-color: #2e7d32;
         }
-        ::-webkit-scrollbar-track {
-            background: #1f2937;
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
         }
-        ::-webkit-scrollbar-thumb {
-            background: #374151;
-            border-radius: 3px;
+
+        .card {
+            background-color: var(--card-bg);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
         }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #4b5563;
+
+        .card h3 {
+            margin-top: 0;
+            font-size: 1rem;
+            color: #aaa;
+        }
+
+        .card .value {
+            font-size: 1.4rem;
+            font-weight: bold;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #252525;
+            color: #888;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background-color: #2a2a2a;
+        }
+
+        .tag {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .tag-strong { background-color: rgba(76, 175, 80, 0.2); color: var(--accent-green); border: 1px solid var(--accent-green); }
+        .tag-high { background-color: rgba(33, 150, 243, 0.2); color: var(--primary-blue); border: 1px solid var(--primary-blue); }
+        .tag-normal { background-color: rgba(255, 235, 59, 0.2); color: var(--accent-yellow); border: 1px solid var(--accent-yellow); }
+        .tag-weak { background-color: rgba(255, 82, 82, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); }
+
+        .price-up { color: var(--accent-red); }   /* 台股習慣：紅漲綠跌 */
+        .price-down { color: var(--accent-green); }
+
+        .signal-box {
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        .buy-signal { background-color: #b71c1c; color: #fff; }
+        .hold-signal { background-color: #f57f17; color: #fff; }
+        .sell-signal { background-color: #1b5e20; color: #fff; }
+
+        .param-info {
+            font-size: 0.85rem;
+            color: #888;
+            margin-top: 15px;
+            background-color: #1a1a1a;
+            padding: 10px;
+            border-radius: 6px;
         }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen font-sans">
+<body>
 
-    <!-- Header / Navbar -->
-    <header class="bg-gray-800 border-b border-gray-700 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-4">
-            <div class="flex items-center space-x-3">
-                <div class="bg-gradient-to-r from-red-500 to-amber-500 text-white p-2 rounded-lg shadow-lg">
-                    <i class="fa-solid fa-chart-line text-xl"></i>
-                </div>
-                <div>
-                    <h1 class="text-xl font-bold tracking-wide text-white">從零開始學股票 <span class="text-xs bg-red-600 text-white px-2 py-0.5 rounded-full ml-1">無念選股法</span></h1>
-                    <p class="text-xs text-gray-400">台股 34MA 生命線與型態篩選系統 (Yahoo API 即時連線版)</p>
-                </div>
-            </div>
-
-            <!-- Global Stock Search Input -->
-            <div class="flex items-center space-x-2 bg-gray-900 px-3 py-1.5 rounded-lg border border-gray-700 focus-within:border-red-500 transition-colors">
-                <i class="fa-solid fa-magnifying-glass text-gray-400"></i>
-                <input id="stockInput" type="text" placeholder="輸入台股代號 (如: 2330, 6547)" value="2330" class="bg-transparent text-sm text-white focus:outline-none w-48">
-                <button id="searchBtn" onclick="loadStockData()" class="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded font-medium transition-colors flex items-center gap-1">
-                    <span>載入數據</span>
-                    <i id="searchSpinner" class="fa-solid fa-spinner fa-spin hidden"></i>
-                </button>
-            </div>
-        </div>
+<div class="container">
+    <header>
+        <h1>Stock From Zero 選股與進出場決策系統</h1>
+        <button class="btn btn-fetch" onclick="fetchStockData()">🔄 偵測最新股票資訊</button>
     </header>
 
-    <!-- Main Layout Container -->
-    <main class="max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <!-- 策略切換 -->
+    <div class="strategy-selector">
+        <button class="btn active" onclick="setStrategy('strong')">電腦選強勢股 (週多排+34MA)</button>
+        <button class="btn" onclick="setStrategy('support')">均線支撐股 (55MA支撐)</button>
+        <button class="btn" onclick="setStrategy('weak')">弱勢空方股 (34MA向下)</button>
+    </div>
 
-        <!-- Left Column: Screener & Control Panel (4 Cols) -->
-        <div class="lg:col-span-4 space-y-6">
-
-            <!-- API Connection Alert/Status -->
-            <div class="bg-gray-800 border border-gray-700 rounded-xl p-4 shadow-md">
-                <div class="flex items-center justify-between mb-2">
-                    <h2 class="text-sm font-semibold text-gray-300 flex items-center gap-2">
-                        <i class="fa-solid fa-wifi text-emerald-400"></i> 數據源狀態
-                    </h2>
-                    <span id="apiStatusBadge" class="text-xs px-2 py-0.5 rounded bg-emerald-900/60 text-emerald-400 border border-emerald-700">Yahoo API 運作中</span>
-                </div>
-                <p class="text-xs text-gray-400 leading-relaxed">
-                    目前透過 CORS Proxy 串接 Yahoo Finance 的即時與歷史 K 線數據（台股開盤時間延遲約 15 分鐘）。
-                </p>
-            </div>
-
-            <!-- Quick Screener Quick Select -->
-            <div class="bg-gray-800 border border-gray-700 rounded-xl p-4 shadow-md space-y-3">
-                <h2 class="text-sm font-semibold text-gray-200 border-b border-gray-700 pb-2 flex items-center justify-between">
-                    <span><i class="fa-solid fa-filter text-red-400 mr-2"></i>策略條件篩選器</span>
-                    <span class="text-xs text-gray-400 font-normal">多重邏輯判斷</span>
-                </h2>
-
-                <div class="grid grid-cols-2 gap-2 text-xs">
-                    <button onclick="applyPreset('strong')" class="p-2 bg-gray-700 hover:bg-red-900/40 hover:border-red-500 border border-gray-600 rounded text-left transition">
-                        <div class="font-bold text-red-400"><i class="fa-solid fa-fire mr-1"></i>電腦選強</div>
-                        <div class="text-gray-400 text-[10px] mt-0.5">多頭排列 + 站上生命線</div>
-                    </button>
-                    <button onclick="applyPreset('support')" class="p-2 bg-gray-700 hover:bg-emerald-900/40 hover:border-emerald-500 border border-gray-600 rounded text-left transition">
-                        <div class="font-bold text-emerald-400"><i class="fa-solid fa-shield-halved mr-1"></i>均線支撐</div>
-                        <div class="text-gray-400 text-[10px] mt-0.5">回測 21/34MA 不破</div>
-                    </button>
-                    <button onclick="applyPreset('breakout')" class="p-2 bg-gray-700 hover:bg-amber-900/40 hover:border-amber-500 border border-gray-600 rounded text-left transition">
-                        <div class="font-bold text-amber-400"><i class="fa-solid fa-bolt mr-1"></i>突破 3 週高</div>
-                        <div class="text-gray-400 text-[10px] mt-0.5">創近 15 日新高</div>
-                    </button>
-                    <button onclick="applyPreset('volume')" class="p-2 bg-gray-700 hover:bg-purple-900/40 hover:border-purple-500 border border-gray-600 rounded text-left transition">
-                        <div class="font-bold text-purple-400"><i class="fa-solid fa-chart-column mr-1"></i>量價增溫</div>
-                        <div class="text-gray-400 text-[10px] mt-0.5">成交量 > 5日均量 1.5 倍</div>
-                    </button>
-                </div>
-
-                <!-- Custom Checkboxes -->
-                <div class="space-y-2 pt-2 border-t border-gray-700 text-xs">
-                    <label class="flex items-center space-x-2 text-gray-300 cursor-pointer">
-                        <input type="checkbox" id="chkLifeLine" checked onchange="evalCurrentStock()" class="rounded bg-gray-900 border-gray-600 text-red-600 focus:ring-0">
-                        <span>股價必須站在 34MA 生命線之上</span>
-                    </label>
-                    <label class="flex items-center space-x-2 text-gray-300 cursor-pointer">
-                        <input type="checkbox" id="chkMaAlign" checked onchange="evalCurrentStock()" class="rounded bg-gray-900 border-gray-600 text-red-600 focus:ring-0">
-                        <span>均線呈現多頭排列 (5MA > 21MA > 34MA)</span>
-                    </label>
-                    <label class="flex items-center space-x-2 text-gray-300 cursor-pointer">
-                        <input type="checkbox" id="chkVolBurst" onchange="evalCurrentStock()" class="rounded bg-gray-900 border-gray-600 text-red-600 focus:ring-0">
-                        <span>成交量放大 (超過 5 日均量 1.5 倍)</span>
-                    </label>
-                </div>
-            </div>
-
-            <!-- Stock Baskets (Watchlists) -->
-            <div class="bg-gray-800 border border-gray-700 rounded-xl p-4 shadow-md">
-                <div class="flex border-b border-gray-700 mb-3">
-                    <button id="tabTrendingBtn" onclick="switchBasketTab('trending')" class="pb-2 text-xs font-bold text-red-400 border-b-2 border-red-500 flex-1 text-center">
-                        🔥 行進中股票籃
-                    </button>
-                    <button id="tabConsolidateBtn" onclick="switchBasketTab('consolidate')" class="pb-2 text-xs font-bold text-gray-400 flex-1 text-center">
-                        ⏸️ 盤整中股票籃
-                    </button>
-                </div>
-
-                <!-- Trending Basket List -->
-                <div id="basketTrending" class="space-y-2 max-h-60 overflow-y-auto">
-                    <!-- Dynamic Items -->
-                </div>
-
-                <!-- Consolidate Basket List -->
-                <div id="basketConsolidate" class="space-y-2 max-h-60 overflow-y-auto hidden">
-                    <!-- Dynamic Items -->
-                </div>
-            </div>
-
-            <!-- Strategy Execution Card -->
-            <div class="bg-gradient-to-br from-gray-800 to-gray-850 border border-gray-700 rounded-xl p-4 shadow-md space-y-2">
-                <h3 class="text-xs font-bold text-amber-400 flex items-center gap-1.5">
-                    <i class="fa-solid fa-graduation-cap"></i> 無念選股金律紀律提醒
-                </h3>
-                <div class="text-[11px] text-gray-300 space-y-1.5 leading-relaxed">
-                    <p><strong class="text-red-400">一過二 (買進)：</strong> 股價突破 3 週高點或關鍵紅K高點，符合型態即可分批建立部位。</p>
-                    <p><strong class="text-emerald-400">一破二 (賣出)：</strong> 跌破 2 天前 K 線低點或收盤跌破 34MA 生命線，嚴格執行停損停利。</p>
-                </div>
-            </div>
-
+    <!-- 儀表板資訊 -->
+    <div class="dashboard">
+        <div class="card">
+            <h3>目前選股策略</h3>
+            <div class="value" id="current-strategy-name">電腦選強勢股</div>
         </div>
-
-        <!-- Right Column: Visualization & Detailed Diagnostics (8 Cols) -->
-        <div class="lg:col-span-8 space-y-6">
-
-            <!-- Stock Info & Real-Time Price Header -->
-            <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 shadow-md flex flex-wrap justify-between items-center gap-4">
-                <div>
-                    <div class="flex items-center gap-3">
-                        <h2 id="stockTitle" class="text-2xl font-bold text-white">台積電 (2330)</h2>
-                        <span id="marketTypeTag" class="text-xs px-2 py-0.5 rounded bg-blue-900/60 text-blue-300 border border-blue-700">上市 2330.TW</span>
-                    </div>
-                    <p id="tradeDate" class="text-xs text-gray-400 mt-1">最新資料日期: ----/--/--</p>
-                </div>
-
-                <div class="flex items-end gap-6">
-                    <div class="text-right">
-                        <div class="text-xs text-gray-400">最新收盤價</div>
-                        <div id="currentPrice" class="text-3xl font-black up-color">---</div>
-                    </div>
-                    <div class="text-right">
-                        <div class="text-xs text-gray-400">漲跌幅</div>
-                        <div id="priceChange" class="text-lg font-bold up-color">--- (---%)</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Health Diagnostics Panel -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div class="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
-                    <div class="text-[11px] text-gray-400 mb-1">健康度綜合評分</div>
-                    <div id="healthScore" class="text-xl font-bold text-amber-400">-- 分</div>
-                </div>
-                <div class="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
-                    <div class="text-[11px] text-gray-400 mb-1">生命線 (34MA) 狀態</div>
-                    <div id="lifeLineStatus" class="text-sm font-bold text-gray-300">計算中...</div>
-                </div>
-                <div class="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
-                    <div class="text-[11px] text-gray-400 mb-1">3 週高點比較</div>
-                    <div id="threeWeekStatus" class="text-sm font-bold text-gray-300">計算中...</div>
-                </div>
-                <div class="bg-gray-800 border border-gray-700 rounded-lg p-3 text-center">
-                    <div class="text-[11px] text-gray-400 mb-1">主要型態特徵</div>
-                    <div id="patternStatus" class="text-sm font-bold text-gray-300">計算中...</div>
-                </div>
-            </div>
-
-            <!-- K-Line & MA Visualization Chart -->
-            <div class="bg-gray-800 border border-gray-700 rounded-xl p-4 shadow-md space-y-4">
-                <div class="flex justify-between items-center border-b border-gray-700 pb-2">
-                    <h3 class="text-sm font-bold text-gray-200 flex items-center gap-2">
-                        <i class="fa-solid fa-chart-candlestick text-red-500"></i>
-                        日 K 線與 5/21/34/55/89 均線走勢圖
-                    </h3>
-                    <div class="flex items-center space-x-3 text-xs">
-                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-yellow-400 inline-block"></span> 5MA</span>
-                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-blue-400 inline-block"></span> 21MA</span>
-                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-pink-500 inline-block"></span> 34MA (生命線)</span>
-                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-purple-400 inline-block"></span> 55MA</span>
-                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span> 89MA</span>
-                    </div>
-                </div>
-
-                <!-- Canvas Chart Container -->
-                <div class="relative h-80 w-full">
-                    <canvas id="klineChart"></canvas>
-                </div>
-
-                <!-- Volume Chart Canvas -->
-                <div class="relative h-28 w-full border-t border-gray-700/50 pt-2">
-                    <canvas id="volumeChart"></canvas>
-                </div>
-            </div>
-
-            <!-- 4 Major Pattern Analysis Card -->
-            <div class="bg-gray-800 border border-gray-700 rounded-xl p-5 shadow-md">
-                <h3 class="text-sm font-bold text-gray-200 mb-3 flex items-center gap-2">
-                    <i class="fa-solid fa-magnifying-glass-chart text-amber-400"></i>
-                    四大型態 & 量價細節診斷
-                </h3>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                    <div class="bg-gray-900/60 p-3 rounded-lg border border-gray-700/80 space-y-1">
-                        <div class="font-bold text-red-400 flex items-center justify-between">
-                            <span>1. 一過二 / 突破創高型態</span>
-                            <span id="badgePattern1" class="text-[10px] px-1.5 py-0.5 rounded bg-gray-700 text-gray-400">未符合</span>
-                        </div>
-                        <p class="text-gray-400 text-[11px] leading-relaxed">
-                            收盤價成功突破過去 15 個交易日（約 3 週）的最高價點位，象徵上方無套牢賣壓。
-                        </p>
-                    </div>
-
-                    <div class="bg-gray-900/60 p-3 rounded-lg border border-gray-700/80 space-y-1">
-                        <div class="font-bold text-emerald-400 flex items-center justify-between">
-                            <span>2. 34MA 生命線支撐</span>
-                            <span id="badgePattern2" class="text-[10px] px-1.5 py-0.5 rounded bg-gray-700 text-gray-400">未符合</span>
-                        </div>
-                        <p class="text-gray-400 text-[11px] leading-relaxed">
-                            股價拉回測試 34MA 生命線獲得支撐並出現止跌紅 K，為無念選股法的安全進場區。
-                        </p>
-                    </div>
-
-                    <div class="bg-gray-900/60 p-3 rounded-lg border border-gray-700/80 space-y-1">
-                        <div class="font-bold text-amber-400 flex items-center justify-between">
-                            <span>3. 外包紅K / 紅三兵攻擊</span>
-                            <span id="badgePattern3" class="text-[10px] px-1.5 py-0.5 rounded bg-gray-700 text-gray-400">未符合</span>
-                        </div>
-                        <p class="text-gray-400 text-[11px] leading-relaxed">
-                            近期出現包覆前日黑K的大紅K，或是連續三根紅K緩步墊高，多頭攻擊意圖強烈。
-                        </p>
-                    </div>
-
-                    <div class="bg-gray-900/60 p-3 rounded-lg border border-gray-700/80 space-y-1">
-                        <div class="font-bold text-purple-400 flex items-center justify-between">
-                            <span>4. 量價結構 (帶量突破)</span>
-                            <span id="badgePattern4" class="text-[10px] px-1.5 py-0.5 rounded bg-gray-700 text-gray-400">未符合</span>
-                        </div>
-                        <p class="text-gray-400 text-[11px] leading-relaxed">
-                            突破時成交量高於 5 日均量 1.5 倍以上，代表主力資金真實進場驅動。
-                        </p>
-                    </div>
-                </div>
-            </div>
-
+        <div class="card">
+            <h3>符合篩選條件個股</h3>
+            <div class="value" id="stock-count">0 檔</div>
         </div>
-    </main>
+        <div class="card">
+            <h3>建議操作原則</h3>
+            <div class="value" style="font-size: 1rem; color: #4fc3f7;">最大持股 ≤ 3檔 | 不追高 | 轉折點進場</div>
+        </div>
+    </div>
 
-    <!-- JavaScript Application Logic -->
-    <script>
-        // Global State & Pre-defined Watchlists
-        let klineChart = null;
-        let volumeChart = null;
-        let currentStockData = [];
-        let currentSymbol = '2330';
+    <!-- 選股結果表格 -->
+    <table>
+        <thead>
+            <tr>
+                <th>股票代碼/名稱</th>
+                <th>最新收盤價</th>
+                <th>5日成交量</th>
+                <th>週均線排列</th>
+                <th>34MA狀態</th>
+                <th>整理型態判斷</th>
+                <th>建議進場點 (一過二/轉折)</th>
+                <th>建議出場/停損點</th>
+                <th>操作訊號</th>
+            </tr>
+        </thead>
+        <tbody id="stock-table-body">
+            <!-- 動態渲染選股結果 -->
+        </tbody>
+    </table>
 
-        const defaultBaskets = {
-            trending: [
-                { symbol: '2330', name: '台積電' },
-                { symbol: '2317', name: '鴻海' },
-                { symbol: '2454', name: '聯發科' },
-                { symbol: '2382', name: '廣達' },
-                { symbol: '3231', name: '緯創' }
-            ],
-            consolidate: [
-                { symbol: '2303', name: '聯電' },
-                { symbol: '2882', name: '國泰金' },
-                { symbol: '2002', name: '中鋼' },
-                { symbol: '2603', name: '長榮' }
-            ]
-        };
+    <div class="param-info">
+        * 系統預設參數：短均線 5 | 中均線 21 | 長均線 89 (週線)；生命線：34MA。<br>
+        * 型態強弱等級：橫盤整理 > 在前高上整理 > 在前低上整理 > 跌破前低。
+    </div>
+</div>
 
-        // Initialize App
-        window.addEventListener('DOMContentLoaded', () => {
-            renderBaskets();
-            loadStockData('2330');
+<script>
+// 模擬即時股市資料庫 (實際應用可接 Alpha Vantage, FinMind 或台灣證券交易所 API)
+const mockMarketData = [
+    { code: "2330", name: "台積電", price: 980, ma34: 950, ma34Trend: "up", weekMA: "多頭", vol5d: 125000, pattern: "橫盤整理", breakTwo: true, prevLow: 930 },
+    { code: "2013", name: "中鋼構", price: 66.6, ma34: 60.2, ma34Trend: "up", weekMA: "多頭", vol5d: 15000, pattern: "在前高上整理", breakTwo: true, prevLow: 58.0 },
+    { code: "3527", name: "聚積", price: 249.0, ma34: 210.0, ma34Trend: "up", weekMA: "多頭", vol5d: 14000, pattern: "橫盤整理", breakTwo: false, prevLow: 230.0 },
+    { code: "4721", name: "美琪瑪", price: 136.0, ma34: 115.0, ma34Trend: "up", weekMA: "多頭", vol5d: 61000, pattern: "在前高上整理", breakTwo: true, prevLow: 120.0 },
+    { code: "2440", name: "太空梭", price: 16.4, ma34: 17.5, ma34Trend: "down", weekMA: "空頭", vol5d: 1400, pattern: "跌破前低整理", breakTwo: false, prevLow: 17.0 },
+    { code: "2317", name: "鴻海", price: 185.0, ma34: 182.0, ma34Trend: "flat", weekMA: "糾結", vol5d: 85000, pattern: "在前低上整理", breakTwo: false, prevLow: 178.0 },
+    { code: "3035", name: "智原", price: 310.0, ma34: 335.0, ma34Trend: "down", weekMA: "空頭", vol5d: 22000, pattern: "跌破前低整理", breakTwo: false, prevLow: 320.0 }
+];
 
-            // Enter key trigger for input
-            document.getElementById('stockInput').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') loadStockData();
-            });
-        });
+let currentStrategy = 'strong';
 
-        // 1. Yahoo Finance API Fetcher via AllOrigins Proxy
-        async function fetchYahooStockData(symbol) {
-            const searchSymbol = symbol.trim().toUpperCase();
+function setStrategy(strategy) {
+    currentStrategy = strategy;
+    
+    // 更新按鈕樣式
+    const btns = document.querySelectorAll('.strategy-selector .btn');
+    btns.forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+
+    const names = {
+        'strong': '電腦選強勢股 (週多排+34MA)',
+        'support': '均線支撐股 (55MA支撐)',
+        'weak': '弱勢空方股 (34MA向下)'
+    };
+    document.getElementById('current-strategy-name').innerText = names[strategy];
+
+    filterAndRender();
+}
+
+function fetchStockData() {
+    alert("已成功連接並偵測最新股票與均線數據！");
+    filterAndRender();
+}
+
+function filterAndRender() {
+    const tbody = document.getElementById('stock-table-body');
+    tbody.innerHTML = '';
+
+    let filtered = mockMarketData.filter(stock => {
+        if (currentStrategy === 'strong') {
+            // 強勢股條件：週多排、收盤>20、收盤>34MA、34MA向上、5日量>10000張
+            return stock.weekMA === '多頭' && stock.price >= 20 && stock.price > stock.ma34 && stock.ma34Trend === 'up' && stock.vol5d >= 10000;
+        } else if (currentStrategy === 'support') {
+            // 均線支撐條件：55MA向上、收盤>55MA、5日量>5000
+            return stock.price > stock.ma34 && stock.vol5d >= 5000;
+        } else if (currentStrategy === 'weak') {
+            // 弱勢股條件：收盤<34MA、34MA向下、價格>50
+            return stock.price < stock.ma34 && stock.ma34Trend === 'down' && stock.price >= 50;
+        }
+        return false;
+    });
+
+    document.getElementById('stock-count').innerText = `${filtered.length} 檔`;
+
+    filtered.forEach(stock => {
+        let patternTag = '';
+        if (stock.pattern === '橫盤整理') patternTag = `<span class="tag tag-strong">1. 橫盤整理 (最強)</span>`;
+        else if (stock.pattern === '在前高上整理') patternTag = `<span class="tag tag-high">2. 在前高上整理</span>`;
+        else if (stock.pattern === '在前低上整理') patternTag = `<span class="tag tag-normal">3. 在前低上整理</span>`;
+        else patternTag = `<span class="tag tag-weak">4. 跌破前低 (避開)</span>`;
+
+        // 進出場點邏輯判定
+        let entryPoint = "";
+        let exitPoint = "";
+        let signal = "";
+
+        if (currentStrategy !== 'weak') {
+            entryPoint = stock.breakTwo ? `NT$ ${stock.price} (突破前2日高點起漲)` : `等待壓回不破前高，出現一過二買進`;
+            exitPoint = `NT$ ${stock.prevLow} (跌破前低或跌破34MA)`;
             
-            // Try TW (上市) first, then fallback to TWO (上櫃)
-            let rawData = await fetchYahooApi(`${searchSymbol}.TW`);
-            let suffix = '.TW';
-
-            if (!rawData || !rawData.timestamp || rawData.timestamp.length === 0) {
-                rawData = await fetchYahooApi(`${searchSymbol}.TWO`);
-                suffix = '.TWO';
-            }
-
-            if (!rawData || !rawData.timestamp || rawData.timestamp.length === 0) {
-                return null;
-            }
-
-            const timestamps = rawData.timestamp;
-            const quotes = rawData.indicators.quote[0];
-
-            // Format raw data array
-            const formatted = timestamps.map((ts, idx) => {
-                const dateStr = new Date(ts * 1000).toISOString().split('T')[0];
-                return {
-                    date: dateStr,
-                    open: quotes.open[idx] ? Number(quotes.open[idx].toFixed(2)) : null,
-                    high: quotes.high[idx] ? Number(quotes.high[idx].toFixed(2)) : null,
-                    low: quotes.low[idx] ? Number(quotes.low[idx].toFixed(2)) : null,
-                    close: quotes.close[idx] ? Number(quotes.close[idx].toFixed(2)) : null,
-                    volume: quotes.volume[idx] ? Math.round(quotes.volume[idx] / 1000) : 0 // 轉為張數 (千股)
-                };
-            }).filter(item => item.close !== null && item.open !== null);
-
-            return {
-                symbol: searchSymbol,
-                suffix: suffix,
-                data: formatted
-            };
-        }
-
-        async function fetchYahooApi(fullSymbol) {
-            const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${fullSymbol}?interval=1d&range=6m`;
-            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-
-            try {
-                const response = await fetch(proxyUrl);
-                if (!response.ok) return null;
-                const proxyData = await response.json();
-                const json = JSON.parse(proxyData.contents);
-                return json.chart.result[0];
-            } catch (err) {
-                console.error(`Fetch error for ${fullSymbol}:`, err);
-                return null;
-            }
-        }
-
-        // 2. Load and Calculate Stock Data
-        async function loadStockData(symbolOverride) {
-            const inputVal = symbolOverride || document.getElementById('stockInput').value;
-            if (!inputVal) return;
-
-            // UI Loading state
-            const spinner = document.getElementById('searchSpinner');
-            const searchBtn = document.getElementById('searchBtn');
-            spinner.classList.remove('hidden');
-            searchBtn.disabled = true;
-
-            const res = await fetchYahooStockData(inputVal);
-
-            spinner.classList.add('hidden');
-            searchBtn.disabled = false;
-
-            if (!res || res.data.length === 0) {
-                alert(`無法取得台股代號 ${inputVal} 的數據，請確認代號是否正確。`);
-                return;
-            }
-
-            currentSymbol = res.symbol;
-            currentStockData = calculateMovingAverages(res.data);
-
-            // Update UI components
-            updateStockHeader(res.symbol, res.suffix);
-            renderCharts();
-            evalCurrentStock();
-        }
-
-        // 3. Technical Indicator Calculations (MA 5, 21, 34, 55, 89)
-        function calculateMovingAverages(data) {
-            return data.map((item, idx, arr) => {
-                return {
-                    ...item,
-                    ma5: calcMA(arr, idx, 5),
-                    ma21: calcMA(arr, idx, 21),
-                    ma34: calcMA(arr, idx, 34), // 生命線
-                    ma55: calcMA(arr, idx, 55),
-                    ma89: calcMA(arr, idx, 89),
-                    volMa5: calcVolMA(arr, idx, 5)
-                };
-            });
-        }
-
-        function calcMA(arr, index, period) {
-            if (index < period - 1) return null;
-            let sum = 0;
-            for (let i = index - period + 1; i <= index; i++) {
-                sum += arr[i].close;
-            }
-            return Number((sum / period).toFixed(2));
-        }
-
-        function calcVolMA(arr, index, period) {
-            if (index < period - 1) return null;
-            let sum = 0;
-            for (let i = index - period + 1; i <= index; i++) {
-                sum += arr[i].volume;
-            }
-            return Number((sum / period).toFixed(0));
-        }
-
-        // 4. Update Header Stock Meta
-        function updateStockHeader(symbol, suffix) {
-            const latest = currentStockData[currentStockData.length - 1];
-            const prev = currentStockData[currentStockData.length - 2] || latest;
-            const diff = Number((latest.close - prev.close).toFixed(2));
-            const pct = Number(((diff / prev.close) * 100).toFixed(2));
-
-            document.getElementById('stockTitle').innerText = `${symbol} ${getStockName(symbol)}`;
-            document.getElementById('marketTypeTag').innerText = suffix === '.TW' ? `上市 ${symbol}.TW` : `上櫃 ${symbol}.TWO`;
-            document.getElementById('tradeDate').innerText = `最新資料日期: ${latest.date}`;
-            
-            const priceEl = document.getElementById('currentPrice');
-            const changeEl = document.getElementById('priceChange');
-
-            priceEl.innerText = latest.close;
-            changeEl.innerText = `${diff >= 0 ? '+' : ''}${diff} (${pct >= 0 ? '+' : ''}${pct}%)`;
-
-            if (diff >= 0) {
-                priceEl.className = 'text-3xl font-black up-color';
-                changeEl.className = 'text-lg font-bold up-color';
+            if (stock.breakTwo && (stock.pattern === '橫盤整理' || stock.pattern === '在前高上整理')) {
+                signal = `<span class="signal-box buy-signal">買進 / 介入點現身</span>`;
             } else {
-                priceEl.className = 'text-3xl font-black down-color';
-                changeEl.className = 'text-lg font-bold down-color';
+                signal = `<span class="signal-box hold-signal">觀望 / 等待起漲</span>`;
             }
+        } else {
+            entryPoint = `NT$ ${stock.price} (股價反彈至34MA受阻)`;
+            exitPoint = `NT$ ${stock.ma34} (突破34MA即停損)`;
+            signal = `<span class="signal-box sell-signal">空方標的</span>`;
         }
 
-        function getStockName(symbol) {
-            const all = [...defaultBaskets.trending, ...defaultBaskets.consolidate];
-            const found = all.find(s => s.symbol === symbol);
-            return found ? `(${found.name})` : '';
-        }
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${stock.code}</strong> ${stock.name}</td>
+            <td class="price-up">NT$ ${stock.price}</td>
+            <td>${stock.vol5d.toLocaleString()} 張</td>
+            <td>${stock.weekMA}</td>
+            <td>${stock.ma34Trend === 'up' ? '↗ 向上 (助漲)' : '↘ 向下 (助跌)'}</td>
+            <td>${patternTag}</td>
+            <td style="color:#4caf50;">${entryPoint}</td>
+            <td style="color:#ff5252;">${exitPoint}</td>
+            <td>${signal}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
 
-        // 5. Evaluate Stock Strategy Rules & Health Check
-        function evalCurrentStock() {
-            if (currentStockData.length < 35) return;
+// 首次載入執行
+filterAndRender();
+</script>
 
-            const len = currentStockData.length;
-            const today = currentStockData[len - 1];
-            const prev = currentStockData[len - 2];
-
-            // 15 days High (~ 3 weeks)
-            const past15Days = currentStockData.slice(len - 16, len - 1);
-            const high15 = Math.max(...past15Days.map(d => d.high));
-            const is3WeekHigh = today.close >= high15;
-
-            // 34MA Life Line Status
-            const isAboveLifeLine = today.close >= today.ma34;
-
-            // MA Alignment (5 > 21 > 34)
-            const isMaAligned = today.ma5 > today.ma21 && today.ma21 > today.ma34;
-
-            // Volume Burst (> 1.5x 5 Vol MA)
-            const isVolBurst = today.volMa5 ? today.volume >= (today.volMa5 * 1.5) : false;
-
-            // Pattern 3: Outside Red K or Red 3 Soldiers
-            const isOutsideRed = (today.close > today.open) && (today.close > prev.high) && (today.open < prev.low);
-
-            // Update UI Health Diagnostics
-            let score = 50;
-            if (isAboveLifeLine) score += 15;
-            if (isMaAligned) score += 15;
-            if (is3WeekHigh) score += 10;
-            if (isVolBurst) score += 10;
-
-            document.getElementById('healthScore').innerText = `${score} 分`;
-            
-            const lifeEl = document.getElementById('lifeLineStatus');
-            lifeEl.innerText = isAboveLifeLine ? '站上生命線 (多頭)' : '跌破生命線 (空頭)';
-            lifeEl.className = `text-sm font-bold ${isAboveLifeLine ? 'text-red-400' : 'text-emerald-400'}`;
-
-            const threeWEl = document.getElementById('threeWeekStatus');
-            threeWEl.innerText = is3WeekHigh ? '突破 3 週高點 🔥' : '未突破 3 週高';
-            threeWEl.className = `text-sm font-bold ${is3WeekHigh ? 'text-red-400' : 'text-gray-400'}`;
-
-            document.getElementById('patternStatus').innerText = isOutsideRed ? '外包強勢紅 K' : (isMaAligned ? '多頭排列格局' : '區間震盪整理');
-
-            // Pattern Badges
-            updateBadge('badgePattern1', is3WeekHigh);
-            updateBadge('badgePattern2', isAboveLifeLine);
-            updateBadge('badgePattern3', isOutsideRed);
-            updateBadge('badgePattern4', isVolBurst);
-        }
-
-        function updateBadge(id, isTrue) {
-            const badge = document.getElementById(id);
-            if (isTrue) {
-                badge.innerText = '符合策略';
-                badge.className = 'text-[10px] px-1.5 py-0.5 rounded bg-red-900/80 text-red-300 border border-red-700';
-            } else {
-                badge.innerText = '未符合';
-                badge.className = 'text-[10px] px-1.5 py-0.5 rounded bg-gray-700 text-gray-400';
-            }
-        }
-
-        // 6. Render Chart.js Visualization
-        function renderCharts() {
-            const recentData = currentStockData.slice(-60); // Show recent 60 trading days
-            const labels = recentData.map(d => d.date.slice(5)); // MM-DD
-
-            const closePrices = recentData.map(d => d.close);
-            const ma5Data = recentData.map(d => d.ma5);
-            const ma21Data = recentData.map(d => d.ma21);
-            const ma34Data = recentData.map(d => d.ma34);
-            const ma55Data = recentData.map(d => d.ma55);
-            const ma89Data = recentData.map(d => d.ma89);
-            const volumeData = recentData.map(d => d.volume);
-
-            // Destroy existing charts
-            if (klineChart) klineChart.destroy();
-            if (volumeChart) volumeChart.destroy();
-
-            // Main K-Line Price Chart
-            const ctxPrice = document.getElementById('klineChart').getContext('2d');
-            klineChart = new Chart(ctxPrice, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        { label: '收盤價', data: closePrices, borderColor: '#ef4444', borderWidth: 2, pointRadius: 0, tension: 0.1 },
-                        { label: '5MA', data: ma5Data, borderColor: '#facc15', borderWidth: 1, pointRadius: 0 },
-                        { label: '21MA', data: ma21Data, borderColor: '#60a5fa', borderWidth: 1, pointRadius: 0 },
-                        { label: '34MA (生命線)', data: ma34Data, borderColor: '#ec4899', borderWidth: 2.5, pointRadius: 0 },
-                        { label: '55MA', data: ma55Data, borderColor: '#c084fc', borderWidth: 1, pointRadius: 0 },
-                        { label: '89MA', data: ma89Data, borderColor: '#34d399', borderWidth: 1, pointRadius: 0 }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { grid: { color: '#374151' }, ticks: { color: '#9ca3af', font: { size: 10 } } },
-                        y: { grid: { color: '#374151' }, ticks: { color: '#9ca3af', font: { size: 10 } } }
-                    }
-                }
-            });
-
-            // Volume Chart
-            const ctxVol = document.getElementById('volumeChart').getContext('2d');
-            const volColors = recentData.map((d, i) => {
-                if (i === 0) return '#ef4444';
-                return d.close >= recentData[i-1].close ? '#ef4444' : '#22c55e';
-            });
-
-            volumeChart = new Chart(ctxVol, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: '成交量 (張)',
-                        data: volumeData,
-                        backgroundColor: volColors
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { display: false },
-                        y: { grid: { color: '#374151' }, ticks: { color: '#9ca3af', font: { size: 9 } } }
-                    }
-                }
-            });
-        }
-
-        // 7. Watchlists & Presets Logic
-        function renderBaskets() {
-            const renderList = (elementId, items) => {
-                const el = document.getElementById(elementId);
-                el.innerHTML = items.map(item => `
-                    <div onclick="loadStockData('${item.symbol}')" class="flex justify-between items-center p-2 bg-gray-900/80 hover:bg-gray-700 rounded border border-gray-700 cursor-pointer transition">
-                        <div>
-                            <span class="font-bold text-gray-200 text-xs">${item.name}</span>
-                            <span class="text-[10px] text-gray-400 ml-1">(${item.symbol})</span>
-                        </div>
-                        <i class="fa-solid fa-chevron-right text-gray-500 text-xs"></i>
-                    </div>
-                `).join('');
-            };
-
-            renderList('basketTrending', defaultBaskets.trending);
-            renderList('basketConsolidate', defaultBaskets.consolidate);
-        }
-
-        function switchBasketTab(tab) {
-            const trendingBtn = document.getElementById('tabTrendingBtn');
-            const consolidateBtn = document.getElementById('tabConsolidateBtn');
-            const trendingBox = document.getElementById('basketTrending');
-            const consolidateBox = document.getElementById('basketConsolidate');
-
-            if (tab === 'trending') {
-                trendingBtn.className = 'pb-2 text-xs font-bold text-red-400 border-b-2 border-red-500 flex-1 text-center';
-                consolidateBtn.className = 'pb-2 text-xs font-bold text-gray-400 flex-1 text-center';
-                trendingBox.classList.remove('hidden');
-                consolidateBox.classList.add('hidden');
-            } else {
-                consolidateBtn.className = 'pb-2 text-xs font-bold text-red-400 border-b-2 border-red-500 flex-1 text-center';
-                trendingBtn.className = 'pb-2 text-xs font-bold text-gray-400 flex-1 text-center';
-                consolidateBox.classList.remove('hidden');
-                trendingBox.classList.add('hidden');
-            }
-        }
-
-        function applyPreset(type) {
-            const chkLifeLine = document.getElementById('chkLifeLine');
-            const chkMaAlign = document.getElementById('chkMaAlign');
-            const chkVolBurst = document.getElementById('chkVolBurst');
-
-            if (type === 'strong') {
-                chkLifeLine.checked = true;
-                chkMaAlign.checked = true;
-                chkVolBurst.checked = false;
-            } else if (type === 'support') {
-                chkLifeLine.checked = true;
-                chkMaAlign.checked = false;
-                chkVolBurst.checked = false;
-            } else if (type === 'breakout') {
-                chkLifeLine.checked = true;
-                chkMaAlign.checked = true;
-                chkVolBurst.checked = true;
-            } else if (type === 'volume') {
-                chkLifeLine.checked = false;
-                chkMaAlign.checked = false;
-                chkVolBurst.checked = true;
-            }
-            evalCurrentStock();
-        }
-    </script>
 </body>
 </html>
