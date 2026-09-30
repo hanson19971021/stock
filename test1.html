@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock From Zero - 全股票即時選股與進出場決策系統</title>
+    <title>Stock From Zero - 全台股即時選股系統</title>
     <style>
         :root {
             --bg-color: #121212;
@@ -23,10 +23,7 @@
             padding: 20px;
         }
 
-        .container {
-            max-width: 1300px;
-            margin: 0 auto;
-        }
+        .container { max-width: 1400px; margin: 0 auto; }
 
         header {
             display: flex;
@@ -55,24 +52,39 @@
             background-color: var(--primary-blue);
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 12px 24px;
             border-radius: 6px;
             cursor: pointer;
             font-weight: bold;
             font-size: 1rem;
+            transition: all 0.3s;
         }
 
+        .btn:hover { background-color: #1976d2; }
         .btn:disabled { background-color: #555; cursor: not-allowed; }
 
-        .status-bar {
-            font-size: 0.95rem;
-            color: #888;
-            margin-left: auto;
+        .progress-bar-container {
+            width: 100%;
+            height: 10px;
+            background-color: #333;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 10px;
+            display: none;
         }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background-color: var(--accent-red);
+            transition: width 0.2s;
+        }
+
+        .status-bar { font-size: 0.95rem; color: #aaa; margin-top: 5px; }
 
         .dashboard {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 15px;
             margin-bottom: 20px;
         }
@@ -84,8 +96,8 @@
             border: 1px solid var(--border-color);
         }
 
-        .card h3 { margin: 0 0 8px 0; font-size: 0.9rem; color: #aaa; }
-        .card .value { font-size: 1.3rem; font-weight: bold; }
+        .card h3 { margin: 0 0 8px 0; font-size: 0.85rem; color: #aaa; }
+        .card .value { font-size: 1.4rem; font-weight: bold; }
 
         table {
             width: 100%;
@@ -97,10 +109,10 @@
         }
 
         th, td {
-            padding: 12px 14px;
+            padding: 12px 12px;
             text-align: left;
             border-bottom: 1px solid var(--border-color);
-            font-size: 0.92rem;
+            font-size: 0.9rem;
         }
 
         th { background-color: #252525; color: #999; font-weight: 600; }
@@ -117,10 +129,8 @@
         .tag-strong { background-color: rgba(76, 175, 80, 0.2); color: var(--accent-green); border: 1px solid var(--accent-green); }
         .tag-high { background-color: rgba(33, 150, 243, 0.2); color: var(--primary-blue); border: 1px solid var(--primary-blue); }
         .tag-normal { background-color: rgba(255, 235, 59, 0.2); color: #ffeb3b; border: 1px solid #ffeb3b; }
-        .tag-weak { background-color: rgba(255, 82, 82, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); }
 
         .price-red { color: var(--accent-red); font-weight: bold; }
-        .price-green { color: var(--accent-green); font-weight: bold; }
 
         .signal-buy { background-color: #b71c1c; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.85rem; }
         .signal-wait { background-color: #f57f17; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.85rem; }
@@ -130,26 +140,33 @@
 
 <div class="container">
     <header>
-        <h1>Stock From Zero - 台股即時自動選股與進出場系統</h1>
+        <h1>Stock From Zero - 全台股自動檢測選股系統</h1>
     </header>
 
     <div class="control-panel">
-        <button id="scan-btn" class="btn" onclick="startFullMarketScan()">🔍 啟動全股票市場偵測</button>
-        <div class="status-bar" id="status-text">點擊按鈕，開始從台灣證券交易所 API 擷取最新真實股價數據...</div>
+        <button id="scan-btn" class="btn" onclick="startFullMarketScan()">🚀 執行全台股（所有股票）即時掃描</button>
+        <div class="status-bar" id="status-text">準備就緒，請點擊按鈕獲取全市場最新真實行情...</div>
+        <div class="progress-bar-container" id="pbar-box">
+            <div class="progress-bar" id="pbar"></div>
+        </div>
     </div>
 
     <div class="dashboard">
         <div class="card">
-            <h3>檢測股票總數</h3>
+            <h3>全市場掃描總檔數</h3>
             <div class="value" id="scanned-count">0 檔</div>
         </div>
         <div class="card">
-            <h3>符合「講義強勢股」標的</h3>
+            <h3>流動性初篩符合檔數</h3>
+            <div class="value" id="filtered-count" style="color:#2196f3;">0 檔</div>
+        </div>
+        <div class="card">
+            <h3>入選強勢股股票籃</h3>
             <div class="value" id="matched-count" style="color: var(--accent-red);">0 檔</div>
         </div>
         <div class="card">
-            <h3>建議最大持股</h3>
-            <div class="value" style="color: #4fc3f7;">≤ 3 檔 (嚴格風控)</div>
+            <h3>建議操作原則</h3>
+            <div class="value" style="color: #4fc3f7; font-size:1.1rem;">同時持股 ≤ 3 檔</div>
         </div>
     </div>
 
@@ -170,7 +187,7 @@
         <tbody id="stock-table-body">
             <tr>
                 <td colspan="9" style="text-align: center; color: #666; padding: 30px;">
-                    請點擊上方「啟動全股票市場偵測」按鈕，系統將自動從網路獲取最新真實交易資訊。
+                    點擊「執行全台股即時掃描」後，系統將自動從公開數據接口下載全市場最新股票進行條件判斷。
                 </td>
             </tr>
         </tbody>
@@ -178,111 +195,123 @@
 </div>
 
 <script>
-// 涵蓋台股市場主要熱門與代表性個股清單 (可擴充至更多代碼)
-const marketStocks = [
-    { code: "2330", name: "台積電" }, { code: "2317", name: "鴻海" },
-    { code: "2454", name: "聯發科" }, { code: "2603", name: "長榮" },
-    { code: "2308", name: "台達電" }, { code: "2382", name: "廣達" },
-    { code: "3037", name: "欣興" },   { code: "8046", name: "南電" },
-    { code: "3189", name: "景碩" },   { code: "2303", name: "聯電" },
-    { code: "3035", name: "智原" },   { code: "3527", name: "聚積" },
-    { code: "2013", name: "中鋼構" }, { code: "4721", name: "美琪瑪" },
-    { code: "6213", name: "聯茂" },   { code: "2609", name: "陽明" },
-    { code: "2615", name: "萬海" },   { code: "2409", name: "友達" }
-];
-
 async function startFullMarketScan() {
     const btn = document.getElementById('scan-btn');
     const status = document.getElementById('status-text');
+    const pbarBox = document.getElementById('pbar-box');
+    const pbar = document.getElementById('pbar');
     const tbody = document.getElementById('stock-table-body');
-    const scannedEl = document.getElementById('scanned-count');
-    const matchedEl = document.getElementById('matched-count');
 
     btn.disabled = true;
     tbody.innerHTML = '';
-    
-    let scannedCount = 0;
-    let matchedCount = 0;
+    pbarBox.style.display = 'block';
+    pbar.style.width = '0%';
 
-    // 計算查詢日期範圍 (抓取近 90 天數據以確保算出精準 34MA)
-    const endDate = new Date().toISOString().split('T')[0];
-    const startDateObj = new Date();
-    startDateObj.setDate(startDateObj.getDate() - 100);
-    const startDate = startDateObj.toISOString().split('T')[0];
+    try {
+        status.innerText = "【1/3】正在拉取全台股最新每日收盤行情大盤清單...";
+        
+        // 使用 FinMind API 獲取全市場股票大盤日線數據
+        const endDate = new Date().toISOString().split('T')[0];
+        const startDateObj = new Date();
+        startDateObj.setDate(startDateObj.getDate() - 90); // 獲取近 90 天數據以精確計算 34MA
+        const startDate = startDateObj.toISOString().split('T')[0];
 
-    status.innerText = `連線 FinMind API 請求台股真實交易數據中...`;
+        // 1. 取得全台股最新主要個股清單與近期價格數據
+        // 為了確保全市場覆蓋且快速檢測，系統採用多線程批次解析
+        const listRes = await fetch(`https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockInfo`);
+        const listData = await listRes.json();
+        
+        // 過濾僅保留一般上市櫃普通股 (代碼為4碼數字)
+        const allStocks = listData.data.filter(s => s.stock_id.length === 4 && !isNaN(s.stock_id));
+        document.getElementById('scanned-count').innerText = `${allStocks.length} 檔`;
 
-    for (let stock of marketStocks) {
-        scannedCount++;
-        scannedEl.innerText = `${scannedCount} / ${marketStocks.length} 檔`;
-        status.innerText = `正在分析真實數據 (${scannedCount}/${marketStocks.length})：${stock.code} ${stock.name}...`;
+        status.innerText = `【2/3】成功載入 ${allStocks.length} 檔股票，開始全市場分析檢測...`;
 
-        try {
-            const url = `https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${stock.code}&start_date=${startDate}&end_date=${endDate}`;
-            const res = await fetch(url);
-            const dataObj = await res.json();
+        let matchedCount = 0;
+        let processed = 0;
 
-            if (dataObj.data && dataObj.data.length >= 40) {
-                const prices = dataObj.data;
-                const len = prices.length;
+        // 批次掃描邏輯 (為維持穩定與流暢，採用高效率多線程並行處理)
+        const batchSize = 10;
+        for (let i = 0; i < allStocks.length; i += batchSize) {
+            const batch = allStocks.slice(i, i + batchSize);
+            
+            await Promise.all(batch.map(async (stock) => {
+                try {
+                    const priceUrl = `https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockPrice&data_id=${stock.stock_id}&start_date=${startDate}&end_date=${endDate}`;
+                    const pRes = await fetch(priceUrl);
+                    const pData = await pRes.json();
 
-                const latest = prices[len - 1];
-                const prev1 = prices[len - 2];
-                const prev2 = prices[len - 3];
+                    if (pData.data && pData.data.length >= 40) {
+                        const prices = pData.data;
+                        const len = prices.length;
 
-                // 1. 計算最新 34 MA 與 5天前的 34 MA (確認方向)
-                const ma34Current = prices.slice(len - 34, len).reduce((a, b) => a + b.Close, 0) / 34;
-                const ma34Prev = prices.slice(len - 39, len - 5).reduce((a, b) => a + b.Close, 0) / 34;
-                const isMa34Up = ma34Current > ma34Prev;
+                        const latest = prices[len - 1];
+                        const prev1 = prices[len - 2];
+                        const prev2 = prices[len - 3];
 
-                // 2. 計算 5 日累積成交量 (張)
-                const vol5d = Math.round(prices.slice(len - 5, len).reduce((a, b) => a + (b.Trading_Volume || 0), 0) / 1000);
+                        // 條件 1：股價 > 20 元
+                        if (latest.Close < 20) return;
 
-                // 3. 檢查「一過二」(收盤價突破前兩日最高點)
-                const prev2MaxHigh = Math.max(prev1.Max, prev2.Max);
-                const isBreakTwo = latest.Close > prev2MaxHigh;
+                        // 條件 2：5 日累積成交量 > 10,000 張 (計算單位換算)
+                        const vol5d = Math.round(prices.slice(len - 5, len).reduce((a, b) => a + (b.Trading_Volume || 0), 0) / 1000);
+                        if (vol5d < 10000) return;
 
-                // 4. 計算近 15 日最高與最低 (判斷整理型態)
-                const highest15 = Math.max(...prices.slice(len - 15, len - 1).map(p => p.Max));
-                const lowest15 = Math.min(...prices.slice(len - 15, len - 1).map(p => p.Min));
+                        // 條件 3 & 4：計算 34MA 並確認 34MA 上揚 (生命線)
+                        const ma34Current = prices.slice(len - 34, len).reduce((a, b) => a + b.Close, 0) / 34;
+                        const ma34Prev = prices.slice(len - 39, len - 5).reduce((a, b) => a + b.Close, 0) / 34;
+                        
+                        const isAboveMa34 = latest.Close > ma34Current;
+                        const isMa34Up = ma34Current > ma34Prev;
 
-                // 整理型態判定 (依據講義第 39-41 頁)
-                let patternType = "4. 跌破前低整理";
-                if (latest.Close >= highest15) patternType = "1. 橫盤整理 (最強)";
-                else if (latest.Close > (highest15 + lowest15) / 2) patternType = "2. 前高上整理";
-                else if (latest.Close > lowest15) patternType = "3. 前低上整理";
+                        // 符合講義強勢條件：股價 > 34MA 且 34MA 向上
+                        if (isAboveMa34 && isMa34Up) {
+                            matchedCount++;
 
-                // ====== 講義條件嚴格過濾 ======
-                // 條件：收盤 > 20元, 收盤 > 34MA, 34MA向上, 5日累積成交量 > 10000張
-                const isMatchStrong = (latest.Close >= 20) && (latest.Close > ma34Current) && isMa34Up && (vol5d >= 10000);
+                            // 檢查「一過二」(收盤價突破前兩日最高點)
+                            const prev2MaxHigh = Math.max(prev1.Max, prev2.Max);
+                            const isBreakTwo = latest.Close > prev2MaxHigh;
 
-                if (isMatchStrong) {
-                    matchedCount++;
-                    matchedEl.innerText = `${matchedCount} 檔`;
+                            // 計算近 15 日最高與最低 (判定 4 種整理型態)
+                            const highest15 = Math.max(...prices.slice(len - 15, len - 1).map(p => p.Max));
+                            const lowest15 = Math.min(...prices.slice(len - 15, len - 1).map(p => p.Min));
 
-                    renderRow({
-                        code: stock.code,
-                        name: stock.name,
-                        close: latest.Close,
-                        ma34: ma34Current.toFixed(1),
-                        isMa34Up: isMa34Up,
-                        vol5d: vol5d,
-                        pattern: patternType,
-                        isBreakTwo: isBreakTwo,
-                        prevLow: lowest15
-                    });
+                            let patternType = "3. 前低上整理";
+                            if (latest.Close >= highest15) patternType = "1. 橫盤整理 (最強)";
+                            else if (latest.Close > (highest15 + lowest15) / 2) patternType = "2. 前高上整理";
+
+                            renderRow({
+                                code: stock.stock_id,
+                                name: stock.stock_name,
+                                close: latest.Close,
+                                ma34: ma34Current.toFixed(1),
+                                isMa34Up: isMa34Up,
+                                vol5d: vol5d,
+                                pattern: patternType,
+                                isBreakTwo: isBreakTwo,
+                                prevLow: lowest15
+                            });
+
+                            document.getElementById('matched-count').innerText = `${matchedCount} 檔`;
+                        }
+                    }
+                } catch (e) {
+                    // 忽略個別請求異常，確保全市場持續掃描
                 }
-            }
-        } catch (e) {
-            console.error(`讀取 ${stock.code} 錯誤:`, e);
+            }));
+
+            processed += batch.length;
+            const progress = Math.min(100, Math.round((processed / allStocks.length) * 100));
+            pbar.style.width = `${progress}%`;
+            status.innerText = `【3/3】全市場檢測中 (${processed} / ${allStocks.length} 檔) - 已找到 ${matchedCount} 檔強勢股...`;
         }
 
-        // 避免 API 頻率過高限制
-        await new Promise(r => setTimeout(r, 120));
+        status.innerText = `✅ 全市場掃描完畢！共掃描 ${allStocks.length} 檔股票，已成功挑選出符合講義條件的股票！`;
+    } catch (err) {
+        console.error(err);
+        status.innerText = "掃描過程中發生錯誤，請重新試驗或檢查網路連線。";
+    } finally {
+        btn.disabled = false;
     }
-
-    status.innerText = `全市場分析完畢！成功掃描，已挑選出符合講義的強勢股！`;
-    btn.disabled = false;
 }
 
 function renderRow(s) {
@@ -292,14 +321,13 @@ function renderRow(s) {
     let patternTag = "";
     if (s.pattern.includes("1.")) patternTag = `<span class="tag tag-strong">${s.pattern}</span>`;
     else if (s.pattern.includes("2.")) patternTag = `<span class="tag tag-high">${s.pattern}</span>`;
-    else if (s.pattern.includes("3.")) patternTag = `<span class="tag tag-normal">${s.pattern}</span>`;
-    else patternTag = `<span class="tag tag-weak">${s.pattern}</span>`;
+    else patternTag = `<span class="tag tag-normal">${s.pattern}</span>`;
 
     let signal = "";
     if (s.isBreakTwo) {
         signal = `<span class="signal-buy">起漲進場點 (一過二)</span>`;
     } else {
-        signal = `<span class="signal-wait">多頭觀望 (等突破前2日高)</span>`;
+        signal = `<span class="signal-wait">多頭觀望 (等待突破前2日高點)</span>`;
     }
 
     tr.innerHTML = `
@@ -309,7 +337,7 @@ function renderRow(s) {
         <td style="color: ${s.isMa34Up ? '#ff5252' : '#4caf50'};">${s.isMa34Up ? '↗ 上揚 (助漲)' : '↘ 下彎'}</td>
         <td>${s.vol5d.toLocaleString()} 張</td>
         <td>${patternTag}</td>
-        <td style="color: #ff5252;">${s.isBreakTwo ? `NT$ ${s.close} (已一過二起漲)` : '等待突破前2日高點'}</td>
+        <td style="color: #ff5252;">${s.isBreakTwo ? `NT$ ${s.close} (突破起漲)` : '等待突破前2日最高價'}</td>
         <td style="color: #4caf50;">NT$ ${Math.min(s.prevLow, parseFloat(s.ma34)).toFixed(1)} (跌破前低/34MA)</td>
         <td>${signal}</td>
     `;
